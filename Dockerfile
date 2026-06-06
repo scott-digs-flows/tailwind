@@ -9,9 +9,9 @@ WORKDIR /app
 
 FROM base AS builder
 RUN pip install --no-cache-dir uv
-COPY pyproject.toml uv.lock* ./
+COPY pyproject.toml uv.lock* README.md ./
 COPY src ./src
-RUN uv sync --frozen --no-dev || uv sync --no-dev
+RUN if [ -f uv.lock ]; then uv sync --frozen --no-dev; else uv sync --no-dev; fi
 
 FROM base AS runtime
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app

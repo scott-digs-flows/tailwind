@@ -15,7 +15,7 @@ tailwind embeds Anthropic's Claude into the analytics UX. This doc explains how.
 
 Default: `claude-opus-4-7` (configurable via `TAILWIND_AI_MODEL`).
 
-We use **adaptive thinking** (`thinking={"type": "adaptive"}`) — Claude decides per-request when and how much to think. No fixed token budget.
+We use **extended thinking** (`thinking={"type": "enabled", "budget_tokens": N}`). The default budget is 8000 tokens (`tailwind.ai.client.DEFAULT_THINKING_BUDGET`); per-call overrides are supported via the `thinking_budget` arg to `chat()`.
 
 ## Prompt caching
 

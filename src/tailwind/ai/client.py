@@ -1,4 +1,4 @@
-"""Anthropic client wrapper with prompt-cached system prompts and adaptive thinking."""
+"""Anthropic client wrapper with prompt-cached system prompts and extended thinking."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from tailwind.config import settings
 from tailwind.logging import get_logger
 
 logger = get_logger(__name__)
+
+DEFAULT_THINKING_BUDGET = 8000
 
 
 @lru_cache(maxsize=1)
@@ -25,6 +27,7 @@ def chat(
     user_message: str,
     max_tokens: int = 16000,
     thinking: bool = True,
+    thinking_budget: int = DEFAULT_THINKING_BUDGET,
 ) -> str:
     """One-shot chat call. System prompt is prompt-cached so repeated calls are cheap."""
     client = get_client()
@@ -41,7 +44,7 @@ def chat(
         "messages": [{"role": "user", "content": user_message}],
     }
     if thinking:
-        kwargs["thinking"] = {"type": "adaptive"}
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
 
     try:
         response = client.messages.create(**kwargs)
