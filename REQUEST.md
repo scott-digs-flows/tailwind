@@ -9,3 +9,7 @@ The second customer is the data analytics team. This is the team that builds and
 This allows for the business to build with AI while leveraging the source of truth and building with the guardrails of the data team. The data team can correct any calculations and everything gets audited via PR requests.
 
 Can you help me define this product in a more thoughtful way so that we can hand off the requirements to a systems architecture engineer and a full stack engineer for design and implementation?
+
+I don't have access to JIRA, so maybe we track this in a `TICKETS.csv` file or something. I'm open to ideas.
+
+What questions do you have for this project to work successfully?
