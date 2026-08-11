@@ -1,0 +1,17 @@
+{
+  "name": "tailwind",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "up": "docker compose --env-file infra/versions.env -f infra/docker-compose.yml up --build",
+    "validate:docs": "python3 scripts/validate_docs.py"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

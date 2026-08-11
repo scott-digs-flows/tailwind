@@ -242,3 +242,46 @@ keeps ADR-004 D3 intact.
 - `02-architecture-brief.md §3.4` — the streaming/latency warning this ADR answers.
 - Fastify JSON Schema validation — <https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/>
 - SSE (`text/event-stream`) and `Last-Event-ID` — <https://html.spec.whatwg.org/multipage/server-sent-events.html>
+
+---
+
+## Staffing input, considered; decision held with one concession (Product, 2026-08-10)
+
+This ADR was written without one fact: **the ~20-person data team writes Python daily and TypeScript
+rarely.** Product raised it and asked directly why not Python on the backend. Recording the exchange,
+because the decision held for a reason that is not "we already started."
+
+**The Python case that applies:** staffing, and it is real. **The ones that do not:** dbt owns
+transformation (Q-11) so there is no dataframe work; the backend is thin — auth, security context,
+cache, HTTP orchestration; and Cube is reached over HTTP, so it constrains the backend language not
+at all.
+
+**What settled it.** 26 of the 99 POC tickets are JS-pinned *regardless* of backend language —
+`packages/spec` (the canonical emitter NFR-QUAL-01 depends on), `packages/charts`, `apps/render`, and
+the CLI, all pinned by the browser editor and the headless-render gate. So the choice was never
+*Python or TypeScript*; it was **TypeScript, or TypeScript and Python.** Python would not spare the
+team TypeScript, it would add a second language and a second deployment shape on top of it.
+
+Backend work that is genuinely language-flexible is ~30 POC tickets, and its character is HTTP, auth,
+cache keys and orchestration — precisely where language matters least. There is very little
+data-shaped code in the backend, by constraint (§2.2 forbids a second computation site).
+
+**The concession, and it is a real one.** `tailwind fmt` is the canonicalizer, which makes it a
+*boundary* rather than a monopoly:
+
+- **Single implementation required:** the canonical emitter and the chart→config mapping. Both JS.
+- **Language-neutral:** the JSON Schema contract. Any language can validate against it.
+- **Therefore:** a Python tool may read specs and emit *rough* YAML, then pipe through
+  `tailwind fmt` to canonicalize and the schema to validate.
+
+So **data-team-facing tooling may be Python where that is natural** — T-119 (dbt manifest bootstrap)
+is native Python territory, as is the AI eval harness, and `scripts/validate_docs.py` already is.
+The application is TypeScript; the tooling boundary is `fmt` plus the schema.
+
+**Mitigation for the residual staffing cost.** The friction for Python engineers is the *toolchain*,
+not the language — Fastify with JSON Schema has no decorators, no DI container, no ORM. Keep the
+toolchain minimal, one command to run everything, documented. The data team's real touchpoints are
+the Cube YAML profile and the CLI, not the API.
+
+**Revisit when:** data-team contributors are measurably blocked by the language, or the headless
+render gate (ADR-005) is dropped. Either reopens this.
