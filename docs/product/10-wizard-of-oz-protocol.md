@@ -41,6 +41,13 @@ protocol puts real data in front of a model provider.
 | **Reviewer** ×1–2 | Real analytics engineers | Commit to a turnaround before the run (§11). |
 | **Auditor** | An analytics engineer who is **not** the reviewer | Runs the correctness audit (§7) and adjudicates outcomes from the PR record alone. |
 
+> **Hard constraint (Q-04, 2026-08-10): neither the reviewer nor the auditor may be one of the
+> engineers building Tailwind.** Some data-team engineers split time onto this project, which makes
+> them invested in the result — and the most likely damaging outcome of this study is a middling
+> result narrated into a pass. With ~20 data-team members, staffing around this costs nothing.
+> Record in the pre-registration who is building and who is judging, and confirm they do not
+> overlap.
+
 The auditor role is not optional. The load-bearing distinction in §7 — author revision versus
 reviewer edits — currently turns on whether a reviewer typed a comment or pushed a commit, and it
 must not be coded by the person who ran the sessions.
@@ -109,7 +116,9 @@ test set and the study measures nothing. This is the largest false-green mechani
 **R6 — Spec visibility is probed within-task, not between.** For every task: show the chart, ask
 the comprehension question, *then* show the spec, ask again. Nine paired observations instead of
 four-versus-five unpaired, and it answers the more useful question — does the spec *add*
-understanding? This gates T-122, which gates ADR-004; it deserves the better design.
+understanding? This gates T-122, which now feeds ADR-005 and the visual editor rather than the file
+format (ADR-004 was decoupled 2026-08-10) — it still gates an architecture decision and deserves the
+better design.
 
 ## 7. Measurement
 

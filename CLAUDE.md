@@ -4,8 +4,16 @@ Analytics-as-code with an AI authoring surface. Business users describe what the
 language; AI composes it **only** out of a governed semantic layer; the data team approves it
 through a pull request. Replaces Tableau / Power BI / Looker.
 
-**Current phase: product definition complete, architecture not started.** There is no application
-code yet. The repo holds requirements, decisions, and a backlog.
+**Current phase: M0 walking skeleton, starting now.** The seven M0 architecture decisions are
+written (ADR-001, ADR-003, ADR-004, ADR-005, ADR-006, ADR-014 — ADR-002 waits on Q-01). There is
+still no application code; T-010 (repo scaffold) is the next thing to land.
+
+**The stack, so you do not have to read five ADRs to start:** TypeScript end-to-end — Fastify API,
+React + Vite front end, one shared `packages/spec` for schemas, parsing and the canonical YAML
+serializer. Apache ECharts behind a narrow adapter, rendered headlessly in Node for CI screenshots
+and PDF (no browser). Cube Core, version-pinned, behind a Tailwind façade, with its own caching off.
+One VM running the same Docker Compose file as the local dev loop. DuckDB is the development-tier
+dialect, so nothing needs warehouse credentials.
 
 `engines.yaml` at the root is a **candidate list, not a decision** — warehouse engines the team has
 already connected to, with real operational notes (DSNs, identifier casing, per-engine quirks).
@@ -34,8 +42,10 @@ don't design around it silently.
 2. **All numbers flow through the semantic compiler.** No path — AI, export, drill-through,
    scheduled delivery — emits SQL that bypasses it. One door.
 3. **AI writes proposals, never shared state.** Its only durable output is a validated diff.
-4. **RLS is enforced at compile time** from the requesting user's identity, independent of who
-   authored the artifact.
+4. **RLS is enforced server-side during query construction** from the requesting user's identity,
+   independent of who authored the artifact, and resolved **per request, not per tenant**
+   (FR-SEM-15). Read "compile time" elsewhere in these docs as meaning this — see
+   `02-architecture-brief.md §2.4`.
 5. **Spec serialization is deterministic and lossless.** Noisy diffs make the review gate theater.
 6. **The serving tier is stateless.**
 7. **Authors need no git account** — the app brokers PRs via a GitHub App.
@@ -50,7 +60,7 @@ Two corollaries worth internalizing:
 
 ## Working in this repo
 
-**Backlog:** [`TICKETS.csv`](TICKETS.csv) — 114 tickets. Column contract and conventions in
+**Backlog:** [`TICKETS.csv`](TICKETS.csv) — 132 tickets. Column contract and conventions in
 [05-ways-of-working.md](docs/product/05-ways-of-working.md). Never renumber or reuse a ticket ID.
 
 **Decisions:** [`docs/adr/`](docs/adr/) — numbers assigned in `02-architecture-brief.md §4`.
@@ -73,9 +83,10 @@ with the architect; drifting tickets away from them silently is how handoffs fai
 Nineteen tracked in [04-open-questions.md](docs/product/04-open-questions.md), each with a working
 assumption. **Silence is an answer** — unchallenged assumptions get built. Still blocking M0:
 
-- **Q-01** warehouse of record and dialect tiers ([working paper](docs/product/06-dialect-strategy.md))
-- **Q-04** team size and timeline
-- The OPEN integration rows in [07-domain-model.md §4](docs/product/07-domain-model.md)
+- **Q-01** warehouse of record and dialect tiers ([working paper](docs/product/06-dialect-strategy.md)) —
+  blocks ADR-002 only; the skeleton builds against DuckDB with no credentials
+- The OPEN integration rows in [07-domain-model.md §4](docs/product/07-domain-model.md) — secret
+  store and observability standards are the two that can still invalidate an ADR
 
 ## Style
 

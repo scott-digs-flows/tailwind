@@ -48,7 +48,7 @@ gone — and the failure mode of losing them is invisible, which is the worst ki
 Everything Issues is good at — assignees, notifications, `Closes #123`, linking a PR to the work it
 implements, concurrent edits without merge conflicts on one file — pays off during implementation.
 Everything the CSV is good at — schema, traceability, living in the same PR as the docs it must stay
-consistent with — pays off during planning. Right now there are 125 tickets and zero lines of
+consistent with — pays off during planning. Right now there are 132 tickets and zero lines of
 application code, so the value is entirely in coherence.
 
 **Concretely: move at the start of M0 implementation** (T-010, the repo scaffold), which is also

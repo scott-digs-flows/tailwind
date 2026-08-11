@@ -5,7 +5,7 @@
 Milestones are sequenced by **risk retired**, not by feature area. Each has an exit criterion that
 is a demonstrable behavior, not a checklist of merged tickets.
 
-> **M0–M2 is the POC** (81 tickets); **M3–M4 is GA** (33 tickets). Per Q-05, production concerns —
+> **M0–M2 is the POC** (99 tickets); **M3–M4 is GA** (33 tickets). Per Q-05, production concerns —
 > availability, scale, security assurance, authoring polish — are deliberately deferred past M2.
 > See [08-poc-scope.md](08-poc-scope.md) for what's out, what stays anyway, and the triggers that
 > pull deferred work back in.
@@ -15,6 +15,94 @@ Relative sizing is captured in `TICKETS.csv` (`size` column: S/M/L/XL).
 
 ---
 
+## A few weeks — what actually fits
+
+*(Added 2026-08-10 after Q-04: architect + full-stack engineer, plus a few of the ~20 data-team
+engineers splitting time. Timeline "a few weeks, ASAP desired.")*
+
+**Plainly: a few weeks does not buy M0–M2.** That is months, and split-time engineers do not add up
+to whole ones — three people at 30% is ~1 FTE, interrupted by exactly the ad-hoc report demand
+Tailwind exists to reduce. It buys **one** of the
+following, and choosing is the most consequential decision available right now.
+
+> **Superseded by a later decision on the same day.** Product initially chose Option A and then
+> reversed to **Option B — build the M0 walking skeleton first** (see *Decision reversal* below).
+> Both options are left standing as written, because the argument for Option A is still the argument
+> that should reopen this if the skeleton lands and the thesis is still untested.
+
+### Option A — Validate the thesis
+Run the wizard-of-oz test (`10-wizard-of-oz-protocol.md`). No product code. With ~20 data people the
+semantic-model setup is fast, and dbt's manifest bootstraps the descriptions (T-119).
+
+**You end with:** a defensible answer on whether business users plus AI produce artifacts the data
+team will merge, a `merged-and-correct` number, and a list of specific, named problems. Plus real
+specs, diffs and reviewer comments to design the product around.
+
+**You do not end with:** any software.
+
+**Why this one.** The riskiest thing about Tailwind is not technical, and a few weeks spent on a
+walking skeleton proves the pipes work — which nobody doubts — while leaving the actual bet
+untested. It also guards Risk 3 in Q-04: data engineers building a self-service tool tend to build
+the tool *they* would want, and this test forces contact with real business users first. If the thesis is wrong, this is the cheapest possible way to find out, and it
+would save months.
+
+### Option B — Prove the pipes ✅ **CHOSEN 2026-08-10 (reversal — this is the live decision)**
+M0 walking skeleton: repo, CI, deploy, one semantic model, one dashboard spec, one real query
+rendered in a browser.
+
+**You end with:** a deployed page showing one chart where changing a metric in a file changes the
+number on screen. Genuinely valuable — it de-risks the integration and forces the M0 ADRs to be
+real.
+
+**You do not end with:** auth, AI, the PR loop, or any evidence about the hypothesis.
+
+### Option C — Both, badly
+Not available. Say so out loud rather than discovering it in week three.
+
+### Decision reversal — build first *(Product, 2026-08-10)*
+
+**Product reversed Option A → Option B: build the M0 walking skeleton now.** The wizard-of-oz
+protocol is not cancelled; it is unscheduled, and `10-wizard-of-oz-protocol.md` stays run-ready
+because it needs no application code and can be run at any point.
+
+The architect's note on this, recorded so the tradeoff is not forgotten: **Option A's argument was
+never refuted, only outvoted.** The skeleton proves the pipes work, which nobody doubted, and it
+does not test the hypothesis. Two consequences follow and both are actionable:
+
+1. **The thesis risk is still open and now has no scheduled test.** It gets tested at M2 exit, which
+   is months away, on a system already built. The cheap mitigation is to run the wizard-of-oz test
+   *alongside* M0 — it consumes data-team time and reviewer time, not architect or full-stack time,
+   so it is not competing for the scarce resource. Recommend Product schedule it in parallel rather
+   than dropping it.
+2. **M0's own scope must not expand to compensate.** "We are building, so let's build properly" is
+   the exact pressure `08-poc-scope.md` was written against. M0 is ADR-001…ADR-006 plus ADR-014, the
+   scaffold, and one chart. Everything else waits.
+
+The five M0 ADRs written on 2026-08-10 — [ADR-001](../adr/ADR-001-deployment-target-and-topology.md),
+[ADR-004](../adr/ADR-004-spec-format-and-repository-layout.md),
+[ADR-005](../adr/ADR-005-frontend-stack-and-chart-library.md),
+[ADR-006](../adr/ADR-006-backend-framework-and-api-style.md),
+[ADR-014](../adr/ADR-014-multi-tenancy-model.md) — exist to unblock this decision.
+
+### Consequence of the build-team answer
+Because a few data-team engineers split time onto Tailwind (Q-04), the semantic-model setup the
+wizard-of-oz test needs is staffed by people who already know the data — the fastest possible path.
+But note the constraint in `10-wizard-of-oz-protocol.md §3`: **whoever builds cannot judge.** The
+test's reviewer and auditor must come from the data-team members *not* working on Tailwind.
+
+### What must not be cut for speed
+
+"ASAP" is exactly the pressure that erodes `08-poc-scope.md §3`. Two of those seven are genuinely
+irreversible and cost almost nothing now:
+
+- **The security context as a parameter of query construction and the cache key** — populate it
+  permissively, but get the *shape* right. Retrofitting it later is a rewrite of the compiler and
+  the cache.
+- **Deterministic, lossless serialization** — the review gate is diffs. Noisy diffs mean the gate is
+  theater and the thesis is untestable.
+
+Everything else in §3 can be argued about. These two cannot be added cheaply later.
+
 ## M0 — Walking skeleton
 **Risk retired:** "Can the core loop work at all?"
 
@@ -23,7 +111,8 @@ warehouse query, with the SQL visible. No AI, no auth, no editor, no PR loop. De
 environment on day one so deployment is never a late surprise.
 
 **Exit:** A developer changes a metric definition in a file, and the deployed dashboard reflects it.
-ADR-001 through ADR-006 are written and agreed.
+ADR-001, ADR-003, ADR-004, ADR-005, ADR-006 and ADR-014 are written and agreed (all are, as of
+2026-08-10); ADR-002 lands when Q-01 is answered and does not gate the exit.
 
 ## M1 — Governed consumption
 **Risk retired:** "Can we serve real users trustworthy numbers, fast?"

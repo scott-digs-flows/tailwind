@@ -66,7 +66,11 @@ These are not negotiable without a Product conversation. Everything else is open
    > is what ADR-003 D4 selects. Read "compile time" anywhere else in these docs as meaning this.
 5. **Spec serialization is deterministic and lossless** across the visual editor, the CLI
    formatter, and AI generation. If diffs are noisy, the review gate is worthless.
-6. **The serving tier is stateless.** Scale from 50 → 5,000 users by adding replicas.
+6. **The serving tier is stateless.** Scale by adding replicas, not by redesign.
+   > *Sizing clarified after Q-04, 2026-08-10.* This previously said "50 → 5,000 users". Q-04 puts
+   > the realistic population near **400**, which is NFR-SCALE-01 **Tier 2** (500 named / ~50
+   > concurrent). Tier 2 is the requirement; **Tier 3 (5,000) is speculative and must not be designed
+   > for** — only not *precluded*. See ADR-001.
 7. **Authors do not need a git-host account.** The app brokers PRs via a service account and
    attributes authorship in the commit trailer.
 
@@ -217,11 +221,18 @@ tenant is still a rewrite. Two countermeasures:
 - **Make "what happens with two tenants?" a mandatory question in every cache-key and RLS design
   review.** These are the two layers where cross-tenant leakage would actually occur.
 
-> ⚠️ **Both countermeasures are NFR-TEN-02, and `08-poc-scope.md §6` recommends deferring them past
-> the POC** — keeping `tenant_id` threaded through (the cheap 80%) and dropping the ceremony (the
-> expensive 20%). That recommendation is awaiting Product's confirmation. Until it is confirmed,
-> read this paragraph as the GA target and `08-poc-scope.md §6` as the POC filter, per the rule in
-> the callout at the top of this document. *(Contradiction flagged by the architect, 2026-08-10.)*
+> ⚠️ **Both countermeasures are NFR-TEN-02, and `08-poc-scope.md §6` defers them past the POC** —
+> keeping `tenant_id` threaded through (the cheap 80%) and dropping the ceremony (the expensive
+> 20%). **Product confirmed the deferral**; NFR-TEN-02 sits in M3 as T-098, with the `§4` trigger.
+> Read this paragraph as the GA target. *(Contradiction flagged by the architect and confirmed
+> resolved, 2026-08-10.)*
+>
+> The deferral leaves the *decorative tenancy* risk above unmitigated, so
+> [ADR-014](../adr/ADR-014-multi-tenancy-model.md) **§D6 substitutes three mechanical CI checks** for
+> the ceremony: a migration-time assertion that every tenant-scoped table has `tenant_id` and an
+> enabled RLS policy, a two-context unit test at the compiler and cache layers, and an
+> unresolved-tenant rejection test. About a day of work in total, and it is the part of NFR-TEN-02
+> that actually catches the failure.
 
 ## 4. Decisions to record as ADRs
 
@@ -262,8 +273,9 @@ Specific traps to avoid, in priority order:
 3. **Do not defer the cache.** Its keying strategy constrains the compiler's API surface.
 4. **Do not let the AI path grow its own query execution.** The moment there are two ways to reach
    the warehouse, the governance guarantee is gone. One door.
-5. **Do not scale prematurely.** Tier 1 (50 users) is a single-region, small deployment. The
-   requirement is that the *architecture* permits Tier 3, not that Tier 3 is provisioned at launch.
+5. **Do not scale prematurely.** Tier 1 (50 users) is a single-region, small deployment. **Tier 2 is
+   the sizing target** (Q-04: ~400 users); the requirement is that the *architecture* does not
+   *preclude* Tier 3, not that Tier 3 is designed for or provisioned.
 
 ## 6. What Product owes the architect
 

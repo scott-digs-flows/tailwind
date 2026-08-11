@@ -724,7 +724,7 @@ fallback is already known:
 | Check | If it fails | Consequence |
 |---|---|---|
 | `access_policy` behaves under Core as documented (not Cloud-gated) | Fall back to `queryRewrite` for row filters | D4 loses declarative, git-reviewed RLS — a real loss against constraint §2.4, but the predicate is still server-side and unbypassable. FR-SEC-05 masking may revert to cut-line status. |
-| **T-118** — Cube Store required with pre-aggregations off? | Cube Store must be deployed | ADR-001 must account for a component we have disabled, and OSS Cube Store's lack of node replication becomes an NFR-AVAIL-01 problem to solve at M3. Does not affect the POC. |
+| **T-118** — Cube Store required with pre-aggregations off? ✅ **answered, see below** | — | **No, provided `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` is set explicitly.** The cost landed somewhere unexpected: that driver is per-process, so **Cube cannot be replicated without Cube Store**. NFR-AVAIL-01 and Cube's horizontal scaling are now the same M3 problem. Does not affect the POC. |
 
 Holding the ADR at Proposed would have blocked ADR-004, which is on the critical path and needs the
 engine's spec format as an input. Both checks are hours of work; run them in M0 and record the
@@ -792,6 +792,164 @@ The failure mode this guards against is gradual, not sudden: someone reaches for
 gated feature, and two years later self-hosting is no longer possible. Enforced as a review
 question in the profile lint's scope (**T-115**) and checked explicitly at the M0 exit.
 
+---
+
+## T-118 answered, plus three corrections to this ADR (Architect, 2026-08-10)
+
+Verified against Cube's documentation, its environment-variable reference and its source tree. The
+one thing not done is running it, so the *behaviour* is documented-and-source-confirmed rather than
+observed; the residual checks are named at the end. T-118 was the highest-value unknown on this ADR,
+and the answer is useful — but the same investigation turned up three things this ADR had wrong or
+understated, and those matter more.
+
+### T-118 — Cube Store is **not** required, conditionally, and the condition is a one-line config
+
+`CUBEJS_CACHE_AND_QUEUE_DRIVER` takes exactly two values, `cubestore` or `memory`. It defaults to
+`memory` in dev mode and **`cubestore` in production**. With the default left alone and no
+`CUBEJS_CUBESTORE_HOST` set, the process boots and `/v1/meta` and `/v1/sql` answer normally — those
+paths touch only the compiler — and then **`/v1/load` throws at query time**, not at startup, with
+*"Cube Store was specified as queue/cache driver. Please set CUBEJS_CUBESTORE_HOST…"*. Startup emits
+only a non-fatal warning, and `/readyz` and `/livez` pass. That is a nasty shape: a deployment can
+look healthy and fail on the first real query.
+
+**So: set `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` explicitly and Cube Store is not deployed.** Both
+the cache and the query queue then live in-process. No refresh worker either — its documented job is
+*"updates pre-aggregations and invalidates the in-memory cache in the background"*, and with no
+pre-aggregations there is nothing to build; the only cost of omitting it is that refresh-key checks
+happen inline on the request path. And **no Redis**: Cube removed Redis in v0.32.0 and replaced it
+with Cube Store, so a stray `CUBEJS_REDIS_URL` in the environment now **hard-errors** rather than
+being ignored.
+
+Cube's own guidance is deliberately more conservative — *"In production, Cube Store must run as a
+separate process"* and *"there're multiple parts of Cube which require Cube Store in production
+mode. Replicating Cube instances without Cube Store can lead to source database degraded
+performance, various race conditions and cached data inconsistencies."* Read carefully, **the real
+constraint in that warning is replication**: the `memory` driver is per-process, so N Cube replicas
+get N uncoordinated caches and queues.
+
+**That is the finding that actually matters for ADR-001, and it is the opposite of what this ADR
+assumed.** D5 said Cube's caching was off, which implied Cube was as freely replicable as the rest of
+the serving tier. It is not:
+
+> **A single Cube instance is fine and Cube Store is unnecessary. The moment Cube needs a second
+> replica, Cube Store becomes required — and OSS Cube Store has no node replication.** So Cube's
+> horizontal scaling and its availability story are the same problem, and D1a forbids the vendor's
+> answer to it.
+
+At Tier 2 (~50 concurrent, ≥85% hit rate in *our* cache in front of Cube) one Cube instance is
+plausible, so this is a GA problem rather than a POC one. But it is a real constraint on
+`02-architecture-brief.md §2.6`, it belongs in ADR-001's growth path, and it should be load-tested
+before anyone assumes otherwise.
+
+### Correction 1 — D5's "caching off" is not achievable as written, and the replacement flag changed
+
+Cube's docs are explicit: *"There's no straightforward way to disable caching in Cube. The reason is
+that Cube not only stores cached values but also uses the cache as a point of synchronization and
+coordination between nodes in a cluster."* `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` **does not disable
+the cache** — it relocates it into the Node process. There is no TTL-to-zero setting; entry TTL is
+hardcoded at 24 h and freshness is governed by `refresh_key`, whose documented floor is one minute.
+There is also a second, undocumented in-process LRU with a hard five-minute ceiling.
+
+**And `renewQuery` — the flag this ADR would have reached for — was removed in v1.7.0.** Its
+replacement is a per-request `cache` field on `/v1/load` with four modes; `no-cache` *"skips refresh
+key checks. Always returns fresh data from the data source"*. **Caveat that must not be missed: it is
+read-bypass, not cache-off — the result is still written back to the cache.**
+
+**So D5's mechanism is restated as:** define no pre-aggregations; run `CACHE_AND_QUEUE_DRIVER=memory`;
+and send `cache: "no-cache"` on every `/v1/load`. D5's *intent* — Tailwind's cache is the only cache
+we manage, measure or rely on — is unchanged and still correct. What changes is that **Cube's cache
+is inert, not absent**, and the safety property therefore has to be argued rather than assumed:
+
+> Cube's cache is keyed on the query it executes, and D4 puts the per-user predicate **into the
+> generated SQL**. Two users with different predicates therefore cannot collide in it. **That is the
+> property to verify, and it matters more than whether Cube Store is deployed** — if it fails, this
+> stops being tidiness and becomes FR-SEC-04.
+
+### Correction 2 — `access_policy` in Core needs `context_to_groups`, and `userAttributes` does not exist there
+
+This ADR's D4 describes `access_policy` blocks *"parameterised by `securityContext` /
+`userAttributes`"*. **`userAttributes` is Cube Cloud only.** Cube's docs: *"The `userAttributes`
+object is only available in Cube Cloud platform. If you are using Cube Core… you won't have access to
+`userAttributes`. Instead, you need to use `securityContext` directly."* Policies must therefore
+reference `securityContext.*`.
+
+Worse, and this is the part with teeth: *"Cube cloud platform automatically maps authenticated users
+to groups for access policies. If you are using Cube Core… you might need to map the security
+context to groups manually."* The hook is **`context_to_groups`**, and it is **required in Core** —
+**omit it and no access policy ever matches.** Combined with Cube's documented fail-open default
+(all rows public unless a policy says otherwise), the failure mode is: *policies present in the
+reviewed model, group mapping absent, and every user sees every row, silently.*
+
+That is precisely the trap D4's "default-deny, enforced by us" guardrail exists for, and now we know
+its concrete shape. **`context_to_groups` is mandatory, and T-116's default-deny assertion must cover
+the case where a policy exists but no group matches.** D1a's verdict is otherwise unchanged: the
+capability is genuinely in Core, only the convenience is Cloud.
+
+### Correction 3 — "pin to an LTS line" and "use multi-fact views" are currently incompatible
+
+D1 and D1a say pin to an LTS line. Cube's LTS programme is real — twelve months of stability and
+security fixes on designated minors — and the active lines are **v1.6.x** (EOL 2027-07-10) and
+**v1.4.x** (EOL 2026-10-26), with latest patches v1.6.70 and v1.4.4. There is **no `lts` Docker
+tag**; you pin the minor.
+
+But **Tesseract only became the default planner in v1.7.0**, and **multi-fact views require
+Tesseract** — and multi-fact views are how Cube handles chasm traps, which is criterion C1, weighted
+×3, the single reason Cube won this ADR. Both LTS lines predate v1.7.0. So the choice is:
+
+| Option | What it means |
+|---|---|
+| **Pin v1.6.70 LTS** | Run Tesseract as an opt-in flag (`CUBEJS_TESSERACT_SQL_PLANNER=true`, plus `CUBEJS_TESSERACT_PRE_AGGREGATIONS=true` on that line) — i.e. run the load-bearing component in a configuration that is **not** the line's default-tested one. No Cube doc addresses this combination. |
+| **Pin v1.7.x** (currently v1.7.18) | Tesseract is the tested default. Not an LTS line, so no twelve-month patch guarantee — but it is the actively developed line, so it gets fixes first, not last. |
+
+**Architect's recommendation: pin v1.7.x, and treat the LTS constraint as satisfied-in-spirit rather
+than to the letter.** The reasoning: an LTS line buys patch stability, and the risk it is protecting
+against is smaller than the risk of running the component our correctness guarantee depends on in a
+non-default configuration on a line where nobody tests it. The whole argument for choosing Cube was
+that it resolves fan-out and chasm correctly; deliberately configuring that path off the beaten track
+to satisfy a version-policy preference inverts the priority.
+
+**This contradicts a constraint Product stated, so it needs Product's confirmation rather than the
+architect's assertion.** The mitigation if Product insists on LTS: pin v1.6.70, set both Tesseract
+flags, and make T-097's negative controls for fan-out and chasm a **blocking** gate on every upgrade
+— which they should be anyway. Revisit when a 1.7-or-later line is designated LTS, which is the
+outcome to expect and which retires this whole paragraph.
+
+### The residual empirical checks
+
+Narrower than T-118 originally was. All hours, and checks 2 and 3 fold into **T-116**, which is
+already building a two-context harness:
+
+1. `cubejs/cube` at the pinned version, `CUBEJS_DEV_MODE=false`,
+   `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory`, no cubestore container: `/v1/meta`, `/v1/sql` and
+   `/v1/load` all answer. (Watch for a dev-mode false positive — the official image starts a Cube
+   Store in-process when `isDockerImage()` and dev mode are both true.)
+2. **The FR-SEC-04 check:** the same semantic query under two security contexts resolving to
+   different `access_policy` row filters, back to back, with `cache: "no-cache"`, confirming from
+   Cube's logs that both executed against the warehouse and neither was served from the other's
+   cache entry.
+3. **The fail-open check:** a query whose security context maps to *no* group — confirm it is
+   rejected or returns nothing, rather than returning everything because no policy matched.
+
+### Hardening baseline this produces
+
+Recorded here because it is a direct output of the investigation, and ticketed as **T-132**:
+
+```dotenv
+CUBEJS_DEV_MODE=false
+CUBEJS_CACHE_AND_QUEUE_DRIVER=memory        # or /v1/load throws at query time
+CUBEJS_DEFAULT_API_SCOPES=meta,data,sql     # drops GraphQL; `jobs` is already off
+CUBEJS_TESSERACT_SQL_PLANNER=true           # explicit even where it is the default
+# CUBEJS_PG_SQL_PORT deliberately unset     — the Postgres-wire SQL API is off by default
+# no CUBEJS_CUBESTORE_HOST, no CUBEJS_REFRESH_WORKER, no CUBEJS_REDIS_* (hard-errors)
+```
+
+plus `context_to_app_id`, `context_to_orchestrator_id`, `repository_factory` and
+**`context_to_groups`** in `cube.js`, and `cache: "no-cache"` on every `/v1/load`. Two further notes:
+`/v1/sql-runner` — the `CVE-2022-23510` endpoint this ADR cites — **does not exist in Cube Core at
+all**; it is a Cloud UI feature, which makes D4's "one door" guardrail cheaper than feared. And there
+is **no official Helm chart**, only two explicitly community-maintained ones, which is an independent
+argument for ADR-001's rejection of a Kubernetes-first POC.
+
 ### One strategic note for Q-03
 
 Cube Cloud is now itself a BI product — workbooks, dashboards, charts, and **embedded analytics**.
@@ -799,3 +957,25 @@ If Tailwind is ever sold (Q-03 keeps SaaS in the back pocket), Cube is not merel
 **competitor in the same category**. Apache-2.0 means this is a commercial consideration rather
 than a legal one — nothing in the licence restricts us — but it is a reason to keep the façade
 boundary (D2) clean and the engine genuinely swappable.
+
+---
+
+## Version pin ratified: **v1.7.x** (Product, 2026-08-10)
+
+The architect challenged D1a's "pin to an LTS line" and is right to. Both current LTS lines predate
+v1.7.0, where Tesseract became the default planner — and **multi-fact views are how Cube handles
+chasm traps**, which is the ×3-weighted criterion that won this ADR in the first place.
+
+**Decision: pin v1.7.x.** Running the correctness-critical query planner off its tested default in
+order to satisfy a version policy inverts the priority. The policy exists to protect us from
+unpatched bugs; it should not push us onto a path where the mechanism we selected the engine *for*
+is not the mechanism being exercised.
+
+D1a's LTS wording is amended to: **pin an exact minor version, upgrade deliberately, and track the
+LTS lines so that moving onto one becomes possible once a line ships with Tesseract as default.**
+The Cloud-gating prohibition in D1a is unchanged and unaffected.
+
+**Revisit when:** an LTS line ships with Tesseract as the default planner. Then pin to it.
+
+*Product made this call rather than leave the scaffold blocked overnight. Reversible — say so and
+the pin moves.*

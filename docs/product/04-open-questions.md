@@ -69,9 +69,27 @@ development-tier, ClickHouse and Postgres not first.
   The revisit trigger is re-aimed rather than retired: **if the org later adopts dbt semantic
   models / MetricFlow metrics, reopen ADR-003** — that would create two definition sites and break
   FR-SEM-02, the constraint the product rests on.
+- ✅ **Cube version pinned to v1.7.x** (Product, 2026-08-10) — the architect showed that "pin to an
+  LTS line" is currently incompatible with multi-fact views, i.e. the chasm-trap mechanism that won
+  ADR-003. Pinning to a line that predates the planner we selected the engine for inverts the
+  priority. See ADR-003 §Version pin.
 - ✅ **Cube Core only, no premium tier** — confirmed by Product. See ADR-003 **D1a**: nothing we
   depend on is Cloud-gated (`access_policy` is Core since v1.2), with one watch item — Cube Store
   HA is Cloud-only, which is part of why T-118 matters.
+- ✅ **T-118 answered 2026-08-10** — Cube Store and the refresh worker are **not** required, provided
+  `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` is set explicitly. Cost: that driver is per-process, so
+  **Cube cannot be replicated without Cube Store**, and Cube stays at one instance. Recorded in
+  ADR-003 §*T-118 answered* and ADR-001 D3/D5. Two corrections to ADR-003 came out of the same
+  work: `context_to_groups` is **mandatory in Cube Core** or access policies fail open, and
+  `userAttributes` is Cloud-only.
+- ⚠️ **One decision Product still owes: which Cube version we pin to.** The stated constraint is
+  "an LTS line", and that is currently **incompatible with using multi-fact views** — Cube's active
+  LTS lines (v1.6.x, v1.4.x) predate v1.7.0, where the Tesseract planner became the default, and
+  multi-fact views require Tesseract. Multi-fact views are how Cube handles chasm traps, which is the
+  ×3-weighted criterion that won ADR-003. **Architect's recommendation: pin v1.7.x and treat the LTS
+  constraint as satisfied in spirit**, because running the correctness-critical planner as a
+  non-default opt-in flag on an untested line is the larger risk. Full argument and the
+  stay-on-LTS mitigation are in ADR-003 §*Correction 3*. Needs a yes/no, not a discussion.
 
 ### Q-03 — Internal platform, or a product we will sell? ✅ DECIDED 2026-08-10
 **Decision: build internal-first, but carry a tenant ID from day one.** SaaS is plausible within
@@ -97,6 +115,10 @@ Security/Legal review, egress controls, and provider contracting wait.
 - The POC must run on a **non-sensitive subject area**. That is the condition the deferral rests on
   — it is not a general exemption.
 - ADR-001 still needs an answer, but a trivial one: simplest thing that runs, single environment.
+  ✅ **Answered 2026-08-10** — [ADR-001](../adr/ADR-001-deployment-target-and-topology.md): one VM
+  running the same Docker Compose file as the local dev loop, one environment named `poc`, Terraform
+  over four cloud primitives so the provider stays a variable. CI runs the whole evidence pipeline
+  against DuckDB in the runner, so it needs neither this environment nor warehouse credentials.
 - **Deferral trigger:** the moment regulated, customer, or PII data enters a dashboard, this
   question returns in full. See `08-poc-scope.md §4`.
 - **Related tension:** the SaaS comment here partly walks back Q-03. Flagged and given a
@@ -122,11 +144,61 @@ Roughly 30 minutes of org-owner work; tracked as T-108.
 
 ## Blocking M1/M2, needed soon
 
-### Q-04 — Who is on the team, and what is the target timeline?
-One architect and one full-stack engineer is a very small team for this scope. Knowing headcount
-and any fixed date changes what "v1" should contain. If the date is fixed and the team is two, M2
-should shrink to a single subject area and the visual editor should be cut immediately rather than
-optimistically scheduled.
+### Q-04 — Who is on the team, and what is the target timeline? ⚠️ PARTIALLY ANSWERED 2026-08-10
+**Answered:** the **data team is ~20 people**. Timeline is **"a few weeks, ASAP desired."**
+
+**Answered 2026-08-10:** the build team is the architect and full-stack engineer **plus a few of the
+20 data-team engineers splitting time** between Tailwind and their existing report work.
+
+**This means the builders, the reviewers and the customers are the same population**, which has one
+large upside and three risks that need naming.
+
+**Upside — domain knowledge you cannot hire.** People who build reports for a living already know
+the semantic layer, the warehouse, the fiscal-calendar quirks, and where numbers go wrong. For a
+semantic-layer product that is a substantial head start, and dogfooding is free.
+
+**Risk 1 — split-time capacity is not additive, and the thing that interrupts it is the problem we
+are solving.** Three people at 30% is ~1 FTE, not 3. Worse, what pulls them back to their day job is
+*ad-hoc report demand* — the exact load Tailwind exists to reduce. The project is therefore starved
+by the problem it is solving, and will be most starved exactly when demand is highest. Plan around
+this explicitly; do not model split-time engineers as fractional FTEs that reliably show up.
+
+**Risk 2 — wizard-of-oz contamination.** A data engineer who is *building* Tailwind cannot be its
+test reviewer or auditor: they are invested in the result. The independent review already identified
+"an amber narrated into a green" as the most likely damaging outcome. **With 20 people this is free
+to avoid** — see `10-wizard-of-oz-protocol.md §3`, now a hard constraint.
+
+**Risk 3 — building for themselves instead of for Morgan.** The characteristic failure of data
+engineers building a self-service tool is that they build the tool *they* would want: powerful,
+code-first, expert-facing. That is roughly how Looker happened, and it is the exact outcome
+`00-vision.md §2` says we lose to. Guard: every business-user-facing decision gets validated against
+real business users, not inferred. That is what the wizard-of-oz test and T-121 are for, and it is
+now a stated reason they exist.
+
+**Consequences of the answer as read:**
+
+1. **A few weeks buys one thing, not the POC.** M0–M2 is months. **Decided 2026-08-10, then
+   reversed the same day: build the M0 walking skeleton first** (Option B), not the wizard-of-oz
+   validation — see `03-roadmap.md §Decision reversal`. The wizard-of-oz protocol is unscheduled
+   rather than cancelled, and the architect's recommendation is to run it *in parallel* with M0
+   because it consumes data-team and reviewer time, not build-team time. Some M1/M2 overlap becomes
+   possible with extra hands, but M2's test still needs M1's semantic layer to exist, so the overlap
+   is partial.
+2. **Scale target confirmed as Tier 2, not Tier 3.** `00-vision.md §3` puts P3 at roughly 5% of
+   users; 20 data people implies a total population near **400**, which lands squarely in
+   NFR-SCALE-01's Tier 2 (500 named / 50 concurrent). **Tier 3 (5,000) is speculative, not a
+   requirement.** The architect should design so as not to *preclude* it and should size for Tier 2.
+   Sanity-check the 400 figure against the real user count.
+3. **Reviewer capacity is not a bottleneck.** Twenty reviewers against a handful of business authors
+   makes Q-13's review SLA easy to commit to, and makes the wizard-of-oz reviewer/auditor roles easy
+   to staff. This is genuinely good news for the thesis — the review gate is the product, and it is
+   well resourced.
+4. **The semantic-model buildout is faster than the estimate assumed.** T-093's 1–3 week estimate
+   assumed a small team. Twenty people over one subject area, with dbt's manifest to bootstrap from
+   (T-119), is much less.
+5. **The ROI story is strong and should be measured.** Twenty people absorbing ad-hoc report
+   requests is a large cost base. Capture the baseline now — T-002 — because it is the number that
+   justifies the project and it disappears once behaviour changes.
 
 ### Q-07 — What is the pilot subject area, and who are the named pilot users?
 The thesis test in M2 needs 5–10 real Morgans and 1–2 real Sams, by name, committed in advance. A

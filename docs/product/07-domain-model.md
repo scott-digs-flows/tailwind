@@ -27,7 +27,7 @@ Tailwind meaning is the one below.
 | **Certification** | An artifact's trust state: `certified`, `draft`, or `deprecated` (FR-SEM-07). Distinct from the *dialect* tiers below. |
 | **Dialect tier** | A warehouse's support level: `certified`, `beta`, `experimental` (FR-SEM-12). |
 | **Conformance suite** | The dialect-parameterized test set that *defines* what "supported" means (FR-SEM-13). |
-| **Tenant** | An isolation boundary. Exactly one in production at v1; always ≥2 in non-prod (NFR-TEN-02). |
+| **Tenant** | An isolation boundary, identified by a stable lowercase slug that is also a git path segment and a cache-key namespace (ADR-014 D1). Exactly one at v1 (`internal`). Two-tenant seeding in non-prod (NFR-TEN-02) is **deferred past the POC** per `08-poc-scope.md §6`; ADR-014 §D6 substitutes three mechanical checks. |
 
 ## 2. State ownership: git vs. the operational database
 
