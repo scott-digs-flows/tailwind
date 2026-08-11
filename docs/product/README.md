@@ -14,6 +14,7 @@ Handoff package for the systems architect and full-stack engineer. Read in order
 | [07-domain-model.md](07-domain-model.md) | Glossary, git-vs-database state ownership, the promotion loop as a state machine, integration inventory | Architect, Full-stack |
 | **[08-poc-scope.md](08-poc-scope.md)** | **What to deliberately not build, what stays despite looking like GA work, and the triggers that end each deferral** | **Architect — read early** |
 | [09-git-integration-setup.md](09-git-integration-setup.md) | Runbook for the GitHub App that brokers PRs on an author's behalf | Product (setup), Full-stack |
+| **[10-wizard-of-oz-protocol.md](10-wizard-of-oz-protocol.md)** | **Run-ready test of the central hypothesis with no application code** — do this first | **Product** |
 
 Backlog lives in [`TICKETS.csv`](../../TICKETS.csv) at the repo root — 114 seeded tickets across 12
 epics and 5 milestones (81 POC, 33 GA). Every requirement prioritized `Must` or `Should` has at

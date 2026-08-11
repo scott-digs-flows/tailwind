@@ -1,0 +1,10 @@
+task_id,run_order,run_date,author_code,reviewer_code,task_source,difficulty,request_summary,semantic_model_tag,pr_class,pr_url,new_metric_proposed,planted_error,author_minutes,iteration_turns,wizard_timebox_blown,proposed,reviewer_wallclock_minutes,reviewer_active_minutes,builder_minutes,outcome,correctness_audit_result,reviewer_looked_at_first,reviewer_wanted_but_lacked,comprehension_before_spec,comprehension_after_spec,baseline_turnaround_days,notes
+WOZ-01,,,,,,easy,,,,,,,,,,,,,,,,,,,,,
+WOZ-02,,,,,,easy,,,,,,,,,,,,,,,,,,,,,
+WOZ-03,,,,,,easy,,,,,,,,,,,,,,,,,,,,,
+WOZ-04,,,,,,moderate,,,,,,,,,,,,,,,,,,,,,
+WOZ-05,,,,,,moderate,,,,,,,,,,,,,,,,,,,,,
+WOZ-06,,,,,,moderate,,,,,,,,,,,,,,,,,,,,,
+WOZ-07,,,,,,hard,,,,,,,,,,,,,,,,,,,,,
+WOZ-08,,,,,,hard,,,,,,,,,,,,,,,,,,,,,
+WOZ-09,,,,,,unanswerable,,,,,,,,,,,,,,,,,,,,,

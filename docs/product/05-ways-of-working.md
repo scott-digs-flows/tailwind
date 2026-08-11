@@ -20,10 +20,54 @@ This keeps the whole project in one repo, reviewable by the same PR process the 
 built around — which is a fitting way to build this particular product, and means the AI tooling
 you plan to point at the codebase can read the backlog too.
 
-**When to graduate:** if the team passes ~5 people or you start wanting cross-ticket queries,
-move to GitHub Issues/Projects. The CSV columns map onto issue fields cleanly, so the migration is
-a script, not a re-entry. I'd avoid GitHub Issues *now* only because you'd be managing two review
-surfaces before there's anything to review.
+### When to move to GitHub Issues
+
+*(Revised 2026-08-10 — the original trigger was headcount, which is the wrong variable.)*
+
+**The CSV is not the asset. The schema and `scripts/validate_docs.py` are.** The check enforces
+fourteen invariants that GitHub Issues has no concept of:
+
+- Every ticket traces to a requirement, ADR, or open question
+- Every referenced ID actually exists in a product doc
+- No dangling dependencies, and **no dependency cycles**
+- **Every `Must`/`Should` requirement has at least one ticket**
+- Nothing is `in-progress` while a dependency is unfinished
+- No `XL` ticket has started work
+
+That is not bureaucracy. It has caught two real defects already: fifteen uncovered requirements
+including **FR-SEM-02** — *"a metric is defined exactly once,"* the guarantee the entire product
+rests on, which had no ticket at all — and the **T-120 dependency inversion** where the ticket
+labelled "do this first" was structurally unstartable behind two later-milestone tickets.
+
+GitHub has sub-issues and Projects custom fields, but no arbitrary dependency DAG, no cycle
+detection, and no notion of requirement coverage. Move naively and all fourteen checks are silently
+gone — and the failure mode of losing them is invisible, which is the worst kind.
+
+**The trigger is not team size. It is: when tickets start being *worked* rather than *planned*.**
+
+Everything Issues is good at — assignees, notifications, `Closes #123`, linking a PR to the work it
+implements, concurrent edits without merge conflicts on one file — pays off during implementation.
+Everything the CSV is good at — schema, traceability, living in the same PR as the docs it must stay
+consistent with — pays off during planning. Right now there are 125 tickets and zero lines of
+application code, so the value is entirely in coherence.
+
+**Concretely: move at the start of M0 implementation** (T-010, the repo scaffold), which is also
+when T-108 gives us the GitHub App anyway.
+
+**The migration is not "export the CSV."** It is:
+
+1. Script the port — one issue per ticket, `epic` → label, `milestone` → milestone, `req_ids` and
+   `depends_on` into a structured block in the issue body.
+2. **Port the validator to run as a GitHub Action against the API**, parsing that block. This is the
+   actual cost of the migration and the part that must not be skipped. Budget it as a real ticket,
+   not a footnote.
+3. Keep `docs/product/*` as the requirements contract. Issues reference requirement IDs; the
+   requirements never move.
+4. Retire `TICKETS.csv` in the same PR that lands the Action — never run both as sources of truth.
+
+**One argument in favour of moving that has nothing to do with tooling:** the team would then live
+in the same PR-review surface it is asking Morgan and Sam to live in. If that experience is bad for
+us, it is early signal about the product. Worth something — just not worth losing the checks for.
 
 ### `TICKETS.csv` columns
 
