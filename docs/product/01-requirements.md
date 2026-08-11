@@ -22,15 +22,17 @@ The heart of the system. Everything else composes against it.
 | FR-SEM-02 | M | A **metric** is defined exactly once and has a single canonical definition system-wide. Two artifacts referencing `revenue` are guaranteed to compute identically. |
 | FR-SEM-03 | M | Metrics support: simple aggregations, ratios, filtered measures, derived/composed metrics, and time-offset comparisons (YoY, MoM, period-to-date). |
 | FR-SEM-04 | M | A canonical time spine supports date-grain rollups (day/week/month/quarter/year) and fiscal calendars. |
-| FR-SEM-05 | M | The query compiler translates a semantic request (metrics + dimensions + filters + grain) into engine-specific SQL, resolving joins and preventing fan-out/chasm-trap double counting. |
+| FR-SEM-05 | M | A semantic request (metrics + dimensions + filters + grain) compiles to engine-specific SQL, resolving joins and preventing fan-out/chasm-trap double counting. Per Q-02 the compilation is performed by the adopted engine (ADR-003); Tailwind owns the request shape, the security context, and the correctness evidence, not the SQL generation. |
 | FR-SEM-06 | M | Every model, dimension, and metric carries required metadata: owner, description, certification status, and last-reviewed date. Missing metadata fails CI. |
 | FR-SEM-07 | M | Certification states: `certified`, `draft`, `deprecated`. Deprecated metrics still resolve but surface a warning and a suggested replacement. |
 | FR-SEM-08 | S | Metric-level assertions (golden-value tests) run in CI: `revenue[2024-Q1] == 41233190 ± 0.1%`. |
 | FR-SEM-09 | S | Impact analysis: given a model/metric change, list every downstream metric and dashboard affected. |
 | FR-SEM-10 | C | Column-level lineage back to warehouse source tables. |
 | FR-SEM-11 | M | Specs are validated against a published JSON Schema; validation is available in-editor, in the CLI, and in CI with identical results. |
-| FR-SEM-12 | M | Warehouse dialects carry a published support tier — `certified` (full conformance, live CI, cost model, RLS, perf baseline, SLA), `beta` (compiles, smoke-tested, no guarantees), `experimental` (untested, inherited from the adopted engine). Exactly one `certified` dialect at GA. |
-| FR-SEM-13 | M | A dialect-parameterized conformance suite defines what "supported" means: every metric shape × grain × join topology, with expected results against a standard seeded dataset. Adding a dialect means passing it. |
+| FR-SEM-12 | M | Warehouse dialects carry a support tier that is **mechanically derived from the conformance suite (FR-SEM-13), not declared**: `certified` (full suite passes in CI on the pinned engine version, plus cost model, RLS, perf baseline, SLA), `beta` (smoke subset passes; no other guarantee), `experimental` (the adopted engine claims it; we run nothing), `development` (conformance-clean and used by CI and the local dev loop, never customer-facing — e.g. an embeddable local engine). The working target is exactly one `certified` serving dialect at GA; the count is settled by Q-01/ADR-002. The tier matrix is published at GA, not during the POC. |
+| FR-SEM-13 | M | A dialect-parameterized conformance suite defines what "supported" means: metric shapes × grains × join topologies, with expected results against a standard seeded dataset, including negative controls proving the fan-out and chasm mechanisms are actually engaged. Its first purpose is to acceptance-test the adopted engine (ADR-003); pricing an additional dialect is the second. Adding a dialect means passing it. |
+| FR-SEM-14 | M | The security context (tenant, subject, groups, attributes) is a **required, non-optional parameter of the semantic query-construction call** and of the result-cache key, from the first query — even where the POC resolves it to a permissive policy. A request with no resolved tenant is rejected, not served. *(Hoists `08-poc-scope.md §3.1` from a scope note to a testable requirement; see ADR-003 D4.)* |
+| FR-SEM-15 | M | Per-user row predicates are resolved **per request**, not per tenant. Any mechanism that resolves the security context once per tenant and reuses it across users is non-compliant, regardless of what the vendor calls it. *(Guards against the vocabulary trap in `02-architecture-brief.md §2.4` — a per-tenant compile-time context cannot satisfy FR-SEC-04.)* |
 
 ## FR-FRESH — Data freshness classes
 
@@ -177,7 +179,7 @@ Scale target is stated as three steps because the architecture must not need a r
 | NFR-AVAIL-02 | M | Zero-downtime deploys; artifact deployment (a merge) never interrupts active sessions. |
 | NFR-AVAIL-03 | S | RPO ≤ 1 h, RTO ≤ 4 h for application state. Artifacts are in git and therefore inherently recoverable. |
 | NFR-TEN-01 | M | Tenant is a first-class scope in the artifact registry, cache keys, connection management, RLS context, audit log, and repository layout. *(Q-03 decided: internal-first, tenant-ready.)* |
-| NFR-TEN-02 | M | Every non-production environment runs with at least two tenants seeded from M0, so single-tenant assumptions cannot accumulate undetected. |
+| NFR-TEN-02 | M | Every non-production environment runs with at least two tenants seeded, so single-tenant assumptions cannot accumulate undetected. **Deferred past the POC** per `08-poc-scope.md §6` — the schema-level tenancy in NFR-TEN-01 is kept, the ceremony is not; T-098 sits in M3 with the §4 trigger. *(Requirement was still saying "from M0" while the POC filter and the backlog both deferred it; reconciled 2026-08-10.)* |
 | NFR-TEN-03 | W | Tenant-facing surfaces — per-tenant branding, billing, self-signup, tenant admin — are out of scope for v1. Isolation only. |
 | NFR-SEC-01 | M | Encryption in transit (TLS 1.2+) and at rest. Secrets in a managed secret store, never in the repo or images. |
 | NFR-SEC-02 | M | Dependency and container scanning in CI; no known criticals shipped to production. |

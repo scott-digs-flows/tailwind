@@ -158,10 +158,15 @@ Baselines for the last row must be captured **before** rollout — see `T-002`.
 
 ## 9. Clean slate
 
-This definition assumes **no inherited technology decisions**. Prior scaffolding in this repo
-(a Plotly Dash app, an Iceberg/Trino/DuckDB engine manifest) is treated as discarded prototype
-work — useful as evidence of what was explored, binding on nothing. Every stack choice is open and
-belongs to the architect, constrained only by the requirements in `01-requirements.md`.
+This definition assumes **no inherited technology decisions**. Prior scaffolding in this repo (a
+Plotly Dash app) is discarded. Every stack choice is open and belongs to the architect, constrained
+only by the requirements in `01-requirements.md`.
+
+One exception worth knowing: [`engines.yaml`](../../engines.yaml) at the repo root documents
+warehouse engines the team has actually connected to — Trino and DuckDB over Iceberg, ClickHouse,
+and Postgres — with working connection details and dialect quirks. **Treat it as a candidate list
+with real operational notes, not as a decision.** Product has confirmed there is flexibility here.
+It is a useful input to Q-01 and ADR-002/003; it is not a constraint.
 
 One naming note: the codename **tailwind** collides with Tailwind CSS, which will be confusing in a
 repo likely to use it. Cheap to change now, expensive after launch — see Q-14.

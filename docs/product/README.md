@@ -31,7 +31,12 @@ estimated the cost. Self-service and a single source of truth stop being a trade
 Draft v0.3 — **POC-first.** M0–M2 tests one hypothesis; GA concerns begin at M3.
 
 **Decided 2026-08-10**
-- Adopt an existing semantic engine (Q-02)
+- Adopt an existing semantic engine (Q-02) — **which one is now answered**:
+  [ADR-003](../adr/ADR-003-semantic-engine-selection.md) selects **Cube Core** behind a Tailwind
+  compiler façade — **Accepted**, ratified by Product. Apache-2.0 open source only, no Cloud or
+  premium tier (D1a). No fork is required for FR-SEM-06/07.
+- dbt owns transformation but **not** metrics (Q-11, Q-02) — ADR-003's assumption holds, and the
+  dbt manifest becomes a bootstrap source for documentation and the freshness signal.
 - Internal-first, carry a tenant ID from day one (Q-03) — *partly in tension with Q-05; see
   [08-poc-scope.md §6](08-poc-scope.md)*
 - Deployment/residency/AI-egress deferred, POC first (Q-05) → [08-poc-scope.md](08-poc-scope.md)
@@ -41,8 +46,10 @@ Draft v0.3 — **POC-first.** M0–M2 tests one hypothesis; GA concerns begin at
 - Freshness is tiered — ~30 min standard, near-live operational (Q-19) → new `FR-FRESH-*` group
 
 **Still blocking M0 kickoff**
-- **Q-01** — warehouse of record and dialect tiers. A conversation to have *with* the architect;
-  working paper in [06-dialect-strategy.md](06-dialect-strategy.md).
+- **Q-01** — warehouse of record and dialect tiers. The architect has responded in
+  [06-dialect-strategy.md §11](06-dialect-strategy.md); what remains is Product's answer on where
+  the pilot data and the legacy BI content actually live, and whether any warehouse outside
+  `engines.yaml` is in play.
 - **Q-04** — team size and timeline. Decides what M2 contains.
 - **Integration inventory** — the OPEN rows in [07-domain-model.md §4](07-domain-model.md).
 

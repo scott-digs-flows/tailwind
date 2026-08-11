@@ -91,9 +91,17 @@ There are two very different things called "multi-engine":
 - **Single-deployment portability** — the same query provably runs across several engines
   simultaneously. *Enormously more expensive, and almost no BI product needs it.*
 
-Prior prototype work in this repo explored the second (an Iceberg lakehouse with Trino, DuckDB,
-ClickHouse, and Postgres all reading the same tables). That was a lab experiment. **We should write
-down that we are not doing it**, or someone will rebuild it under the banner of "flexibility."
+Prior prototype work in this repo explored the second: [`engines.yaml`](../../engines.yaml)
+describes an Iceberg lakehouse with Trino, DuckDB, ClickHouse, and Postgres all reading the same
+tables. **We should write down that we are not doing single-deployment portability**, or someone
+will rebuild it under the banner of "flexibility."
+
+That said — keep the file. Product has confirmed those engines are candidates with genuine
+flexibility, and the manifest carries hard-won operational detail: working DSNs, per-engine
+identifier casing, ClickHouse flattening the Iceberg namespace into the table name, DuckDB's
+S3 signing scope problem with the Iceberg extension. That is exactly the kind of knowledge that is
+expensive to rediscover. **Read it as evidence about candidate dialects, not as a target
+architecture.**
 
 ## 7. Proposal D — The second engine you might actually want is a cache engine
 
@@ -129,6 +137,19 @@ Decision rule, in priority order:
 4. **Does the adopted engine certify it?** If our target warehouse is only Beta-tier in the engine
    we like best, that is a serious mark against that engine — not something to work around.
 
+**Candidate set.** [`engines.yaml`](../../engines.yaml) lists engines the team has already stood up
+and connected to: Trino and DuckDB over Iceberg, ClickHouse, and Postgres. Product has confirmed
+flexibility — nothing here is committed. Two observations for whoever writes ADR-002:
+
+- The manifest's own notes flag ClickHouse as *"the most idiosyncratic SQL dialect here."* By the
+  §8 criterion 3 argument, that makes it a poor choice for the **first** Certified dialect even if
+  it is attractive on performance — starting on an idiosyncratic dialect hides assumptions until
+  dialect #2 exposes them all at once.
+- Postgres is tier-`copy` in that manifest: it cannot read Iceberg natively and holds a synced
+  copy. If Postgres were the Certified dialect, freshness (FR-FRESH) would be bounded by the sync
+  cadence, not by the warehouse. That interacts directly with the ≤30 min `standard` requirement
+  and the near-live `operational` class — worth checking before it is chosen.
+
 If (1) and (2) disagree, (2) should usually win: a pilot on a warehouse nobody else uses proves
 less than a pilot on the warehouse everyone is migrating off.
 
@@ -144,11 +165,166 @@ less than a pilot on the warehouse everyone is migrating off.
 7. **Dialect #2 is demand-triggered, not roadmap-triggered** — a named customer or pilot need,
    priced with the conformance suite.
 
-## 10. What I need from you
+## 10. What I need from you *(Product → Architect)*
 
 - **Which warehouse holds the pilot subject area, and where does existing BI content point?**
   These two answers settle §8 almost entirely.
-- **Does the org run dbt today?** Feeds both ADR-003 and this decision.
+- **Does the org run dbt today?** Feeds both ADR-003 and this decision. *(Architect, 2026-08-10:
+  sharpened — the answer that actually changes ADR-003 is whether the org already defines **metrics
+  in dbt semantic models / MetricFlow**, not whether dbt owns transformation. See Q-02.)*
 - **Is there a known second warehouse in the org** (an acquisition, a legacy Postgres, a
   department's BigQuery)? If yes, dialect #2 is a scheduling question, not a hypothetical, and
   should enter the roadmap as Beta-tier at M3.
+
+---
+
+## 11. Architect's response *(2026-08-10, written alongside ADR-003)*
+
+You asked me to push back on this paper rather than accept it. Here is where I agree, where I
+think it is measuring the wrong thing, and what I would change.
+
+### 11.1 I agree with §9.1 — one Certified dialect at GA — but for a better reason than cost
+
+The paper argues one dialect on **cost**: a live warehouse in CI forever, conformance coverage,
+type mapping, cost models, RLS primitives. All true, and all recurring. But cost arguments lose to
+sales pressure, and they get weaker as the team grows. The argument that survives contact with a
+customer is a **correctness** one.
+
+Dialect adapters differ precisely where wrong numbers come from: `date_trunc` and week-start
+conventions, fiscal boundaries, decimal precision, NULL and division semantics in ratio metrics,
+and — most of all — the SQL the engine emits to defeat fan-out and chasm traps. A second Certified
+dialect does not add 50% more surface; it doubles the surface on which the product's stated core
+failure mode (`00-vision.md §2`, *"a confident chart with a wrong number"*) can occur, in the exact
+places that are hardest to notice. Cube has an open multi-fact code-generation defect against
+ClickHouse today (`cube-js/cube#10493`) — a concrete instance of the general shape.
+
+So: one Certified dialect, and the rule for adding #2 is not "we can afford it" but **"someone is
+willing to own the wrongness risk and the conformance suite passes."** That rule keeps working when
+the team is ten people.
+
+### 11.2 The tier model is right, but it should be *computed*, not *declared*
+
+§4 tiers dialects. Under the Q-02 decision we don't own the dialect — we own a **conformance
+result**. The honest unit is `engine version × dialect × conformance-suite outcome`, and the tier
+should fall out of CI rather than out of a meeting:
+
+- **Certified** — the full suite passes on the pinned engine version, in CI, against a live
+  warehouse, and there is a cost model, an RLS story and a perf baseline.
+- **Beta** — the smoke subset passes in CI. Nothing else is promised.
+- **Experimental** — the engine claims it; we run nothing.
+
+This is the same argument the repo already makes about `validate_docs.py`: mechanical rules belong
+in a check, not in someone's memory. It also removes the political failure mode where "Certified"
+is decided by whoever is loudest in the room. **Consequence for FR-SEM-12:** the tier is a derived
+property, so the requirement should say the tier is *published and mechanically derived from the
+conformance suite*, not merely published. I have amended it.
+
+### 11.3 Don't publish the tier matrix yet
+
+§4 says publish the tiers now, and calls it the highest-leverage decision here. I'd split it:
+**adopt the model now, publish the matrix at GA.** During a POC with one warehouse and zero
+external customers there is nobody to publish to, and a published matrix invites "can you beta
+support X?" conversations that a two-person team cannot absorb. The leverage the paper is after
+comes from having the *vocabulary* and the *mechanism*; the public artifact is a GA deliverable.
+Costs nothing to delay, and it keeps `08-poc-scope.md`'s discipline intact.
+
+### 11.4 Yes, the conformance suite belongs in M0 — but its first job is not the one §5 gives it
+
+You asked specifically. **Yes, M0** — and I'd have argued for it even if the suite bought us
+nothing on dialect pricing, because §5 has the purpose slightly wrong.
+
+Under Q-02 we have just bet the product's central correctness guarantee on **someone else's
+compiler**. The conformance suite is how we verify that bet, and the moment to verify it is
+*before* ADR-004 hardens the spec format around the engine and before M1 builds a serving plane on
+top of it. Pricing dialect #2 is a genuine second benefit, not the reason.
+
+That reframing changes what the suite should contain and in what order. Not "every metric shape ×
+every grain × every topology" — that is a GA-sized artifact, and T-097 currently reads that way at
+`L`/`P0` in a milestone that already carries six ADRs and a walking skeleton. It is exactly the
+kind of well-intentioned thoroughness that kills POCs. In M0, build the ~20 cases that would
+actually falsify the adoption decision:
+
+1. **Four join topologies** — single fact; fact + conformed dimension; two facts on a shared
+   dimension (chasm); fact + bridge + dimension (fan-out). These are where engines differ.
+2. **The grain matrix** — day/week/month/quarter/year plus one fiscal boundary, for one measure.
+3. **One of each metric shape** — additive, `count_distinct`, ratio, filtered, derived, YoY, PTD.
+
+with a negative control: the fan-out and chasm cases must produce *wrong* numbers when the declared
+relationships are removed. A test that still passes when the mechanism is disabled is not testing
+the mechanism. Grow the matrix in M1 as T-015 through T-018 land.
+
+Parameterise by dialect from the first commit — that part of §5 is exactly right and it is nearly
+free.
+
+### 11.5 A category this paper is missing: the development dialect
+
+§4's three tiers assume every dialect is a customer's serving warehouse. One is not.
+
+`engines.yaml` already runs **DuckDB embedded, in-process, against the same Iceberg tables** as
+Trino. That makes DuckDB something the tier model has no name for: a dialect that must be
+conformance-clean because our tests and our local loop depend on it, but which will never serve a
+customer. It is worth naming, because it pays for itself three times over:
+
+- The conformance suite runs on every PR at zero warehouse spend and zero flakiness.
+- **Differential testing** — the same suite on DuckDB *and* Postgres, results compared — is a
+  correctness oracle that catches dialect-dependent wrongness immediately, and it is cheaper than
+  maintaining golden files by hand. This is *not* the single-deployment portability §6 rules out,
+  and the distinction is worth writing down because someone will conflate them: we are running the
+  same tests on two engines, not routing one production query to two engines.
+- It substantially defuses the CI credential problem in `02-architecture-brief.md §3.5`. Most of
+  the CI evidence pipeline (FR-GOV-03/04/05) can run against a seeded local DuckDB with no
+  warehouse credentials in CI at all, reserving live-warehouse runs for the checks that genuinely
+  need them.
+
+**Recommendation:** add a fourth tier, `development` — conformance-clean, never customer-facing,
+no cost model, no SLA. And make "does the engine support a zero-cost embeddable local dialect?" a
+scored criterion for engine selection. It was, in ADR-003, and both finalists passed.
+
+### 11.6 On §8 — which warehouse
+
+I cannot answer §8 criteria 1 and 2; they are Q-07 and T-088 and they belong to Product. What I can
+do is close the circularity and give a default.
+
+**The circularity.** §8 criterion 4 says the engine's certification of our warehouse should
+influence the warehouse choice, while §2 says the warehouse should influence the engine choice.
+`docs/adr/README.md` says write ADR-003 first, but `T-004` (ADR-002) does not depend on `T-005`
+(ADR-003). Resolved as follows, and the dependency is now recorded in the backlog: **ADR-003 picks
+the engine that certifies the whole plausible warehouse set, and ADR-002 then picks freely from
+within it.** That ordering only works if the engine's matrix is broad, which is why dialect
+coverage was weighted ×2 in ADR-003 and why Cube's coverage of all four `engines.yaml` engines
+mattered. It is now a fact rather than a hope: ADR-002 is unconstrained by ADR-003.
+
+**The default, if nothing else decides it.** Of the `engines.yaml` set:
+
+- **Trino — the default choice for the one Certified dialect.** Iceberg-native, so freshness is
+  bounded by the warehouse rather than by a sync (which matters directly for FR-FRESH's ≤30 min
+  `standard` class); the reference Iceberg engine in the manifest's own words; and a
+  representative, well-behaved dialect, which is §8 criterion 3's requirement.
+- **DuckDB — `development` tier** per §11.5. Not a serving warehouse.
+- **ClickHouse — not first.** The manifest calls it *"the most idiosyncratic SQL dialect here"* and
+  it is the one dialect where the engine we selected has a known multi-fact defect. Both point the
+  same way.
+- **Postgres — not first.** It is tier-`copy`: it cannot read Iceberg and holds a synced replica,
+  so choosing it caps freshness at the sync cadence. That is a direct conflict with FR-FRESH-01,
+  and it would make the POC's freshness numbers a property of `scripts/sync_postgres.py` rather
+  than of Tailwind. Excellent as a *second* conformance target for differential testing.
+
+If Q-07 or T-088 points somewhere outside this list — a Snowflake or BigQuery estate nobody
+mentioned — that outranks all of the above, and the selected engine certifies those too.
+
+### 11.7 Where I think §7 is right and worth protecting
+
+§7's extract-engine idea is the one genuinely compelling second dialect, and the paper is right to
+defer it to M3. One addition: ADR-003's decision to keep the engine's own caching **off** and let
+Tailwind own the single result cache is what keeps that door open. If we let the engine's
+materialisation layer own performance, an extract engine later is a fight with it rather than a
+component slotted behind a clean boundary.
+
+### 11.8 What I still need from Product
+
+The two questions in §10 stand, and I have sharpened the dbt one in `04-open-questions.md`: the
+answer that matters is not "do you run dbt?" but **"do you already define metrics in dbt semantic
+models / MetricFlow today?"** Only the second would change ADR-003. Add one more:
+
+- **Is there a warehouse in the org that is not in `engines.yaml`?** If the real estate is
+  Snowflake or BigQuery, §11.6's default is void and the pilot should start there instead.

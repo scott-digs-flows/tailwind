@@ -27,7 +27,7 @@ here.
 |---|---|---|---|
 | ADR-001 | Deployment target and topology | M0 | Not started |
 | ADR-002 | Warehouse of record; dialect support tiers | M0 | Not started |
-| ADR-003 | Semantic engine selection | M0 | Not started |
+| ADR-003 | [Semantic engine selection — Cube Core behind a Tailwind façade](ADR-003-semantic-engine-selection.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-004 | Spec format and repository layout | M0 | Not started |
 | ADR-005 | Front-end stack and chart library | M0 | Not started |
 | ADR-006 | Backend framework and API style | M0 | Not started |
@@ -46,3 +46,9 @@ here.
 `ADR-003` (semantic engine) first — it constrains `ADR-004` (spec format), which constrains
 everything else. `ADR-001` and `ADR-006` can run in parallel. `ADR-008` should wait for real
 volumetrics from M1 observability rather than being written against planning assumptions.
+
+`ADR-002` (warehouse of record) *reads* as though it were circular with `ADR-003` — each doc names
+the other as an input. It is not, now that ADR-003 has landed: the selected engine certifies every
+`engines.yaml` candidate plus Snowflake, BigQuery and Databricks, so ADR-002 chooses freely.
+Write ADR-003 first anyway, because that freedom is a result of it rather than an assumption
+behind it. See [`06-dialect-strategy.md §11.6`](../product/06-dialect-strategy.md).

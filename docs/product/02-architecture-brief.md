@@ -53,8 +53,17 @@ These are not negotiable without a Product conversation. Everything else is open
 2. **All numbers flow through the semantic compiler.** No code path — including AI, exports,
    drill-through, and scheduled delivery — emits SQL that bypasses it.
 3. **The AI writes proposals, never shared state.** Its only durable output is a validated diff.
-4. **RLS is enforced at compile time in the serving plane**, derived from the requesting user's
-   identity, independent of who authored the artifact.
+4. **RLS is enforced during server-side query construction**, derived from the requesting user's
+   identity, independent of who authored the artifact. The predicate is injected into the generated
+   SQL before execution: never applied in the browser, never a filter the client can drop, and never
+   dependent on which authoring path produced the artifact.
+   > *Wording clarified by Product, 2026-08-10.* This constraint previously said "at compile time,"
+   > which collides with vendor vocabulary. In Cube's terms, `COMPILE_CONTEXT` is *compile-time* but
+   > resolves **per tenant only** — it cannot express a per-user predicate, and forcing it to by
+   > minting per-user app IDs is explicitly documented as not scaling. Per-user predicates go
+   > through `access_policy` / `queryRewrite`, which Cube calls *query-time*. **That satisfies this
+   > constraint** — it is still server-side, still in the generated SQL, still unbypassable — and it
+   > is what ADR-003 D4 selects. Read "compile time" anywhere else in these docs as meaning this.
 5. **Spec serialization is deterministic and lossless** across the visual editor, the CLI
    formatter, and AI generation. If diffs are noisy, the review gate is worthless.
 6. **The serving tier is stateless.** Scale from 50 → 5,000 users by adding replicas.
@@ -104,6 +113,41 @@ The p95 target is unreachable without a high cache hit rate; RLS makes caching d
   it isn't. This needs a rigorous argument, not a heuristic.
 - Invalidation triggers: spec version change, upstream data freshness, TTL, manual. How is
   "upstream freshness" known — polling, warehouse metadata, or an ELT-completion webhook?
+
+**The rigorous argument, supplied** *(added by the architect, 2026-08-10, during ADR-003)*. There
+is no published formal treatment of when pre-RLS caching is sound — every vendor that does it
+(Looker PDTs, AtScale security-dimension aggregates) leaves verification to the operator, and the
+ones that won't risk it simply refuse to cache at all (BigQuery disables both result caching and BI
+Engine acceleration on any table with a row-level access policy). So here are the conditions,
+stated so ADR-008 can be held to them. A cached pre-RLS result may be filtered on read **only if
+all four hold**:
+
+1. **Expressibility.** The security predicate is expressible over columns *present in the cached
+   result at its cached grain*. A predicate on `owner_id` cannot be applied to a result grouped by
+   `region`.
+2. **Decomposability.** Every measure in the result is additive (`SUM`, `COUNT`) or re-aggregable
+   (`MIN`, `MAX`) over that partition. `COUNT(DISTINCT)`, medians and percentiles are **not**
+   recoverable from partitioned pre-aggregates. Note this is the same additivity constraint as the
+   fan-out problem in §3.2 — both ask whether an aggregate commutes with a partition of its input,
+   so the two analyses should share a test suite.
+3. **Partition, not predicate.** The security rule must induce a disjoint, covering partition of
+   the cached set on a grouping key, not an arbitrary row filter.
+4. **No cardinality leakage.** Totals, `COUNT(*)`, ranks or percentile positions computed pre-RLS
+   must not be exposed alongside the filtered rows, or the invisible rows leak through the
+   aggregate.
+
+Where any condition fails, the cache key includes the security context and that is the end of it.
+**The default is per-context keying; pre-RLS caching is an optimisation that must prove all four
+conditions per query shape**, and the proof belongs in ADR-008 with a test, not in a comment.
+
+The failure mode this guards against is not hypothetical. It is the single most repeated bug in
+this product category: *something that scopes the query fails to scope the cache.* Metabase
+`CVE-2025-27141` served one user's cached rows to an impersonated user; the dbt Semantic Layer
+documents today that *"If metrics are pulled from the cache, we don't have the security context
+applied to those tables at query time"*; Cube warns that omitting its cache-context keys leaks one
+tenant's data to another, and that a pre-aggregation refreshed without a security context is built
+with no RLS at all and then served to everyone. Assume we will make this mistake unless the cache
+API makes it impossible to make.
 
 ### 3.3b Freshness tiering
 Freshness is not uniform (Q-19): ~30 min for most content, near-live for operational dashboards.
@@ -167,11 +211,17 @@ only.
 
 The failure mode to design against is *decorative* tenancy — a tenant column that exists but is
 never exercised, so single-tenant assumptions accumulate underneath it and the eventual second
-tenant is still a rewrite. Two countermeasures, both cheap and both required:
+tenant is still a rewrite. Two countermeasures:
 - **Seed a second tenant in every non-prod environment from M0.** If two tenants never coexist in a
   running system, the tax buys nothing.
 - **Make "what happens with two tenants?" a mandatory question in every cache-key and RLS design
   review.** These are the two layers where cross-tenant leakage would actually occur.
+
+> ⚠️ **Both countermeasures are NFR-TEN-02, and `08-poc-scope.md §6` recommends deferring them past
+> the POC** — keeping `tenant_id` threaded through (the cheap 80%) and dropping the ceremony (the
+> expensive 20%). That recommendation is awaiting Product's confirmation. Until it is confirmed,
+> read this paragraph as the GA target and `08-poc-scope.md §6` as the POC filter, per the rule in
+> the callout at the top of this document. *(Contradiction flagged by the architect, 2026-08-10.)*
 
 ## 4. Decisions to record as ADRs
 

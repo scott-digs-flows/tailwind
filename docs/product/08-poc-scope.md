@@ -54,6 +54,9 @@ and the cache key from the first query.** Populate it with a permissive predicat
 Retrofitting a security dimension into a compiler and a cache is a rewrite of both — the single
 most expensive thing on this page to get wrong.
 
+This is now **FR-SEM-14**, a testable requirement rather than a scope note, and ADR-003 makes an
+engine's inability to accept a security context disqualifying. T-116 is the M0 test.
+
 ### 3.2 Deterministic, lossless serialization (NFR-QUAL-01)
 The entire review model is diffs. Noisy diffs mean the PR gate is theater and the hypothesis can't
 be tested. This is POC-critical, not GA-critical.

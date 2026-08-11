@@ -23,6 +23,11 @@ one most likely to change what you'd otherwise recommend.
 5. `docs/product/01-requirements.md` — the GA target, filtered by (3)
 6. `docs/product/04-open-questions.md` — what is still unknown, and the working assumptions
 
+Also read `engines.yaml` at the repo root: warehouse engines the team has already stood up, with
+working connection details and per-engine dialect quirks. It is a **candidate list with real
+operational evidence, not a decision** — Product has confirmed flexibility. See
+`06-dialect-strategy.md §6` and `§8` for how to read it.
+
 ## How to work
 
 **Challenge the brief; don't route around it.** The §2 constraints are Product decisions with

@@ -7,6 +7,10 @@ through a pull request. Replaces Tableau / Power BI / Looker.
 **Current phase: product definition complete, architecture not started.** There is no application
 code yet. The repo holds requirements, decisions, and a backlog.
 
+`engines.yaml` at the root is a **candidate list, not a decision** — warehouse engines the team has
+already connected to, with real operational notes (DSNs, identifier casing, per-engine quirks).
+Useful input to Q-01 and ADR-002/003. Product has confirmed there is flexibility.
+
 ## Read this first
 
 | If you are… | Read |

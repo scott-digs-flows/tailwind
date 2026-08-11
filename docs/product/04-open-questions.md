@@ -24,8 +24,24 @@ one.
 model so we can name additional dialects honestly without paying for them, and a dialect
 conformance suite built in M0 so the price of dialect #2 is a known number rather than an argument.
 
-**Sub-question that needs an answer regardless:** does the org already run dbt, and where does the
-majority of existing Tableau/Power BI content point? That answers "which one" almost by itself.
+**Architect responded 2026-08-10** — [`06-dialect-strategy.md §11`](06-dialect-strategy.md). In
+short: agrees with one Certified dialect but on correctness rather than cost grounds; agrees the
+conformance suite belongs in M0 but repoints it (its first job is acceptance-testing the engine we
+just adopted, and its M0 scope should be ~20 cases, not the full matrix — T-097 rescoped); argues
+the tier should be *derived from CI* rather than declared, and that the matrix should be published
+at GA rather than during the POC; adds a fourth `development` tier for the local/CI dialect; and
+resolves the ADR-002 ↔ ADR-003 circularity by confirming the selected engine certifies every
+`engines.yaml` candidate, so **ADR-002 is unconstrained by ADR-003**. FR-SEM-12/13 amended
+accordingly. Default recommendation absent Q-07/T-088: **Trino** certified, **DuckDB**
+development-tier, ClickHouse and Postgres not first.
+
+**Sub-questions that need an answer regardless:**
+- Where does the majority of existing Tableau/Power BI content point? That plus Q-07 settles
+  "which one" almost by itself.
+- **Is there a warehouse in the org that is not in `engines.yaml`?** If the real estate is
+  Snowflake or BigQuery, the recommendation above is void.
+- Does the org run dbt — and, the version of that question that actually decides anything, see
+  Q-02 below.
 
 ### Q-02 — Semantic layer: adopt an existing engine, or build our own? ✅ DECIDED 2026-08-10
 **Decision: adopt an existing metrics engine.** We do not build a metrics engine.
@@ -36,9 +52,26 @@ majority of existing Tableau/Power BI content point? That answers "which one" al
   forking.
 - The adopted engine's spec becomes a hard input to ADR-004 (spec format). Do not design our spec
   format before the engine is chosen.
-- **Still open:** whether the org already runs **dbt**. If it does, weight candidates that inherit
-  dbt metadata — otherwise the semantic layer becomes a second place to define things, and the
-  "defined once" guarantee (FR-SEM-02) quietly breaks at the boundary. Feed this into T-005.
+- **Selection made 2026-08-10** — [ADR-003](../adr/ADR-003-semantic-engine-selection.md) selects
+  **Cube Core**, self-hosted under Apache-2.0, behind a Tailwind compiler façade, with a
+  constrained profile of Cube's YAML as the reviewed git artifact. **Fork-risk verdict: no fork is
+  needed for FR-SEM-06/07**, and it was not close for any live candidate — certification is
+  metadata plus our CI plus our UI, and the only engine requirement is that it carries arbitrary
+  metadata and returns it over its API, which Cube's `meta` does. Q-02 stands.
+- **Sharpened, and still open:** the question as originally written — *"does the org already run
+  dbt?"* — does not discriminate between the candidates. Every candidate reads dbt-built tables
+  perfectly well, so dbt owning *transformation* is close to irrelevant here. The question that
+  would actually change ADR-003 is narrower: **does the org already define metrics in dbt semantic
+  models / MetricFlow today?** *(Reframed by the architect, 2026-08-10.)*
+- ✅ **ANSWERED 2026-08-10: no.** The org uses dbt for transformations but not MetricFlow. ADR-003's
+  central assumption holds, the second-definition-site risk does not exist, and the runner-up's
+  strongest situational advantage does not apply. **ADR-003 is ratified and Accepted.**
+  The revisit trigger is re-aimed rather than retired: **if the org later adopts dbt semantic
+  models / MetricFlow metrics, reopen ADR-003** — that would create two definition sites and break
+  FR-SEM-02, the constraint the product rests on.
+- ✅ **Cube Core only, no premium tier** — confirmed by Product. See ADR-003 **D1a**: nothing we
+  depend on is Cloud-gated (`access_policy` is Core since v1.2), with one watch item — Cube Store
+  HA is Cloud-only, which is part of why T-118 matters.
 
 ### Q-03 — Internal platform, or a product we will sell? ✅ DECIDED 2026-08-10
 **Decision: build internal-first, but carry a tenant ID from day one.** SaaS is plausible within
@@ -133,10 +166,21 @@ whether we can enforce security centrally at all. If it is currently "per-report
 by hand," we should say plainly that we are *replacing* that with a central model, and budget for
 it.
 
-### Q-11 — Does an existing dbt/ELT pipeline own the transformation layer?
-Tailwind consumes a warehouse; it does not transform. If there is no owned transformation layer,
-somebody will ask us to become one — and the non-goal in `00-vision.md §6` needs organizational
+### Q-11 — Does an existing dbt/ELT pipeline own the transformation layer? ✅ ANSWERED 2026-08-10
+**Yes — dbt owns transformation.** The non-goal in `00-vision.md §6` now has organizational
 backing, not just a bullet in a doc.
+**Consequences, both favourable:**
+- **T-093 (documentation backfill) is largely bootstrappable.** dbt's `manifest.json` already
+  carries model and column descriptions, tests and ownership. Generating draft cubes and `meta`
+  blocks from it beats authoring from scratch and directly improves AI grounding (FR-AI-05) — the
+  assistant is only as good as the descriptions it reads. **FR-DEV-06 promoted from an unticketed
+  `Could` to real leverage; new ticket T-119.**
+- **FR-FRESH-05 has its signal source: dbt run completion.** "How do we know upstream data is
+  fresh?" was open across three docs. It is the ELT webhook the design already preferred over
+  polling. T-111 updated.
+- Note this is the *transformation* question. The one that could have reopened ADR-003 was
+  narrower — metrics defined in dbt semantic models / MetricFlow — and the answer to that is
+  **no**. See Q-02.
 
 ---
 
