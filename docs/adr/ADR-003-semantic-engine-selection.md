@@ -979,3 +979,34 @@ The Cloud-gating prohibition in D1a is unchanged and unaffected.
 
 *Product made this call rather than leave the scaffold blocked overnight. Reversible — say so and
 the pin moves.*
+
+---
+
+## D4 verified in a running engine (T-116 / T-117, 2026-08-12)
+
+The Validation clause is satisfied. `packages/semantic/test/manual/rls-check.ts` shows, against
+Cube v1.7.18 over DuckDB, two users in the **same tenant** getting different row sets from one
+cache-eligible query — `analyst` sees four regions, `west_only` sees one — with different
+security-context digests. A per-tenant context cannot produce that, which is exactly what FR-SEM-15
+forbids relying on.
+
+Three corrections to the ADR's own assumptions, all found by running it:
+
+1. **The config hook is `contextToGroups`, not `contextToRoles`.** Cube's current documentation says
+   the latter; v1.7.18 rejects it at startup as an invalid option. Verified against the image's own
+   option validator. Correction 1 predicted this hook would be load-bearing and was right about the
+   consequence — without it `access_policy` matches nothing and every row is served — but the
+   published name is wrong for the version we pin.
+2. **Matching a policy does not grant member visibility.** `member_level` defaults closed
+   independently of `row_level`, so a policy with only a row filter yields *"You requested hidden
+   member"*. Default-deny is stricter than the ADR assumed, in the safe direction. Both policies now
+   carry an explicit `member_level`.
+3. **Default-deny surfaces as a refusal, not as zero rows.** A context whose groups match no policy
+   gets an error, not an empty result set. That is better than the ADR implied — an error is louder
+   than silence, and silence is how a fail-open bug survives review — but any code treating "no
+   rows" as the deny signal would be wrong. The façade must treat a refusal as the expected
+   deny path, and the check asserts refusal-or-empty rather than empty alone.
+
+**Standing note for ADR-008:** the digest differs per user, so a naive per-context cache key is
+correct but has a hit rate of roughly one. That is the pre-RLS caching argument in
+`02-architecture-brief.md §3.3`, and it is now a measured problem rather than a predicted one.

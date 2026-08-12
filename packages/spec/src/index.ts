@@ -13,3 +13,4 @@ export type {
 } from './types.ts';
 export { format, isFormatted, NonCanonicalError } from './format.ts';
 export { keyOrder } from './schema-order.ts';
+export { lintBundle, formatFindings, type Finding } from './lint.ts';

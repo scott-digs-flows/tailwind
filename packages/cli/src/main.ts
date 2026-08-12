@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { format, formatErrors, isFormatted, kindFromFilename, parseSpec } from '@tailwind/spec';
+import { format, formatErrors, formatFindings, isFormatted, kindFromFilename, lintBundle, parseSpec } from '@tailwind/spec';
 import { writeFileSync } from 'node:fs';
 
 /**
@@ -37,8 +37,16 @@ function validateCommand(root: string): number {
       console.error(formatErrors(`  FAIL  ${shown}`, result.errors));
     }
   }
-  console.log(`\n${files.length - failed}/${files.length} specs valid`);
-  return failed === 0 ? 0 : 1;
+  // T-115: checks a per-file schema structurally cannot make -- executable model files,
+  // Cloud-gated keys, templating, CODEOWNERS routing drift. One gate, not two commands,
+  // so the app, the CLI and CI cannot disagree about what is acceptable (FR-SEM-11).
+  const findings = lintBundle(root);
+  if (findings.length > 0) {
+    console.error(`\nprofile lint:\n${formatFindings(findings)}`);
+  }
+  const total = failed + findings.length;
+  console.log(`\n${files.length - failed}/${files.length} specs valid, ${findings.length} lint finding(s)`);
+  return total === 0 ? 0 : 1;
 }
 
 /**

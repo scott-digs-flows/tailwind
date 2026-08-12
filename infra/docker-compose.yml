@@ -57,6 +57,9 @@ services:
       CUBEJS_LOG_LEVEL: "${CUBEJS_LOG_LEVEL:-warn}"
     volumes:
       # The reviewed artifacts ARE the model. Read-only: Cube never writes to git-owned content.
+      # Engine config, not a reviewed artifact. contextToRoles in here is what stops
+      # access_policy failing open (ADR-003 Correction 1).
+      - ../infra/cube/cube.js:/cube/conf/cube.js:ro
       - ../content/tenants/internal/semantic:/cube/conf/model:ro
       # Development-tier data. DuckDB reads it in place -- no warehouse, no credentials.
       - ../infra/seed:/cube/conf/seed:ro

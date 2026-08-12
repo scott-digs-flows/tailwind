@@ -56,5 +56,7 @@ export function securityContextDigest(ctx: SecurityContext): string {
  * of both, and it is the single most expensive thing on that page to get wrong.
  */
 export function pocSystemContext(tenant = 'internal'): SecurityContext {
-  return resolveSecurityContext({ tenant, subject: 'system', groups: ['poc:all'] });
+  // 'analyst' is a group the reviewed access_policy actually matches. A group that
+  // matches nothing would get nothing -- which is default-deny working, not a bug.
+  return resolveSecurityContext({ tenant, subject: 'system', groups: ['analyst'] });
 }
