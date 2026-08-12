@@ -11,7 +11,8 @@ views:
     access_policy:
       - group: '*'
         row_level:
-          filters: []
+          filters:
+            []
     meta:
       tailwind:
         spec_version: 1

@@ -11,3 +11,5 @@ export { parseSpec, validate, formatErrors, type ParseResult, type SpecError } f
 export type {
   Dashboard, DashboardChart, ChartQuery, ChartType, FreshnessClass, FilterOperator, TimeDimensionRef,
 } from './types.ts';
+export { format, isFormatted, NonCanonicalError } from './format.ts';
+export { keyOrder } from './schema-order.ts';

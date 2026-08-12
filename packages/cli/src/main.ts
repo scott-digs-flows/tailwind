@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { formatErrors, kindFromFilename, parseSpec } from '@tailwind/spec';
+import { format, formatErrors, isFormatted, kindFromFilename, parseSpec } from '@tailwind/spec';
+import { writeFileSync } from 'node:fs';
 
 /**
  * FR-DEV-01. The CLI shares ONE validator with the API and CI (FR-SEM-11) -- the
@@ -40,12 +41,57 @@ function validateCommand(root: string): number {
   return failed === 0 ? 0 : 1;
 }
 
+/**
+ * ADR-004 D3. `fmt` rewrites to canonical form; `fmt --check` fails without writing,
+ * which is what CI runs so non-canonical bytes cannot be merged. That check is what
+ * makes every subsequent diff in the product's history minimal.
+ */
+function fmtCommand(root: string, checkOnly: boolean): number {
+  const files = walk(root).filter((f) => kindFromFilename(f) !== null);
+  let changed = 0;
+  for (const file of files) {
+    const kind = kindFromFilename(file);
+    if (kind === null) continue;
+    const source = readFileSync(file, 'utf8');
+    const shown = relative(process.cwd(), file);
+    try {
+      if (checkOnly) {
+        if (!isFormatted(kind, source)) {
+          changed += 1;
+          console.error(`  not canonical  ${shown}`);
+        }
+      } else {
+        const out = format(kind, source);
+        if (out !== source) {
+          writeFileSync(file, out);
+          changed += 1;
+          console.log(`  formatted  ${shown}`);
+        }
+      }
+    } catch (e: unknown) {
+      changed += 1;
+      console.error(`  ERROR  ${shown}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (checkOnly) {
+    console.log(changed === 0 ? `${files.length} files canonical` : `\n${changed} file(s) need formatting; run: tailwind fmt`);
+    return changed === 0 ? 0 : 1;
+  }
+  console.log(changed === 0 ? `${files.length} files already canonical` : `\n${changed} file(s) formatted`);
+  return 0;
+}
+
 const [command, ...rest] = process.argv.slice(2);
+const args = rest.filter((a) => !a.startsWith('-'));
+const flags = new Set(rest.filter((a) => a.startsWith('-')));
 switch (command) {
   case 'validate':
-    process.exit(validateCommand(rest[0] ?? 'content'));
+    process.exit(validateCommand(args[0] ?? 'content'));
+    break;
+  case 'fmt':
+    process.exit(fmtCommand(args[0] ?? 'content', flags.has('--check')));
     break;
   default:
-    console.error('usage: tailwind validate [path]');
+    console.error('usage: tailwind <validate|fmt [--check]> [path]');
     process.exit(2);
 }

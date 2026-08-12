@@ -42,6 +42,11 @@ jobs:
       - name: Validate specs
         run: node packages/cli/src/main.ts validate content
 
+      # ADR-004 D3. Non-canonical bytes cannot be merged, which is what keeps every
+      # subsequent diff in the product's history minimal -- and the review gate honest.
+      - name: Specs are canonically formatted
+        run: node packages/cli/src/main.ts fmt --check content
+
       # The traceability gate. Mechanical rules belong in a check, not in memory.
       - name: Validate docs and backlog
         run: python3 scripts/validate_docs.py
