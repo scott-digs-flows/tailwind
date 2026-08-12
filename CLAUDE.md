@@ -72,6 +72,21 @@ an **`allowBuilds` map** in `pnpm-workspace.yaml`, edited via `pnpm approve-buil
 back from `pnpm config get`, and they do nothing. Never reach for `dangerouslyAllowAllBuilds`.
 CI installs with `--frozen-lockfile` so this state cannot drift between a laptop and the build.
 
+**Run the stack locally:**
+
+```bash
+docker compose --env-file infra/versions.env -f infra/docker-compose.yml up -d
+# http://localhost:8080  -- the dashboard
+# http://localhost:4000  -- Cube
+./scripts/publish.sh                  # after editing anything under content/
+./scripts/verify-walking-skeleton.sh  # proves a metric edit moves the number (T-011)
+```
+
+Cube compiles the model **once at startup** (`CUBEJS_DEV_MODE=false`), so a change under
+`content/` needs `./scripts/publish.sh`. That is deliberate rather than a limitation: artifacts are
+published on merge, not hot-reloaded. ADR-007 / T-029 replaces the restart with an immutable
+per-merge bundle.
+
 **Validate before committing:**
 
 ```bash

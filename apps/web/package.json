@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@tailwind/charts": "workspace:*",
+    "@tailwind/spec": "workspace:*",
+    "echarts": "^5.5.1"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",

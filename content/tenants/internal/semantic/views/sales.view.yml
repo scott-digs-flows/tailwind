@@ -1,0 +1,21 @@
+views:
+  - name: sales
+    title: Sales
+    description: The certified surface dashboards may reference.
+    cubes:
+      - join_path: orders
+        includes: '*'
+    # ADR-003 D4: default-deny is OURS to enforce -- Cube's own default is that all
+    # rows are public. The POC policy is permissive, but the mechanism is present
+    # from the first query so it is not retrofitted later (08-poc-scope.md 3.1).
+    access_policy:
+      - group: '*'
+        row_level:
+          filters: []
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: Certified sales surface for dashboards.
+        certification: certified
+        last_reviewed: '2026-08-12'

@@ -16,6 +16,11 @@ services:
       CUBE_URL: "http://cube:4000/cubejs-api/v1"
       DATABASE_URL: "postgres://tailwind:tailwind@postgres:5432/tailwind"
       REDIS_URL: "redis://redis:6379"
+      TAILWIND_CONTENT_ROOT: "/srv/content"
+    volumes:
+      # Reviewed artifacts, read-only. In M0 the "bundle" is the working tree; the
+      # immutable per-merge bundle is ADR-007 / T-029.
+      - ../content:/srv/content:ro
     ports: ["3001:3001"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -53,6 +58,8 @@ services:
     volumes:
       # The reviewed artifacts ARE the model. Read-only: Cube never writes to git-owned content.
       - ../content/tenants/internal/semantic:/cube/conf/model:ro
+      # Development-tier data. DuckDB reads it in place -- no warehouse, no credentials.
+      - ../infra/seed:/cube/conf/seed:ro
     ports: ["4000:4000"]
 
   # Operational DB: job records, audit log, drafts. Never holds anything that changes a number.

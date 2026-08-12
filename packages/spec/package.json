@@ -1,22 +1,23 @@
 {
-  "name": "@tailwind/api",
+  "name": "@tailwind/spec",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/server.js",
+  "exports": { ".": "./src/index.ts" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "node --watch src/server.ts",
-    "start": "node dist/server.js"
+    "gen:types": "node scripts/gen-types.ts",
+    "test": "node --test test/*.test.ts"
   },
   "dependencies": {
-    "fastify": "^5.2.0",
-    "@tailwind/semantic": "workspace:*",
-    "@tailwind/spec": "workspace:*"
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "yaml": "^2.6.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "json-schema-to-typescript": "^15.0.3",
     "typescript": "^5.9.3"
   }
 }

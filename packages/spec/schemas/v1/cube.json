@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.tailwind.internal/v1/cube.json",
+  "title": "Tailwind profile of a Cube cube",
+  "x-tailwind-cube-version": "v1.7.18",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cubes"
+  ],
+  "properties": {
+    "cubes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/cube"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "noTemplating": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {
+          "not": {
+            "pattern": "\\{\\{"
+          }
+        },
+        {
+          "not": {
+            "pattern": "\\{%"
+          }
+        }
+      ],
+      "description": "ADR-003 D2: Jinja templating is rejected. It defeats deterministic serialization, defeats static validation, and gives AI-generated content a code-execution surface."
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "tailwind"
+      ],
+      "properties": {
+        "tailwind": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "spec_version",
+            "owner",
+            "description",
+            "certification"
+          ],
+          "properties": {
+            "spec_version": {
+              "const": 1
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "certification": {
+              "enum": [
+                "certified",
+                "draft",
+                "deprecated"
+              ]
+            },
+            "last_reviewed": {
+              "type": "string",
+              "format": "date"
+            },
+            "replaced_by": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "description": "FR-SEM-06/07 ride in Cube's arbitrary meta, namespaced under `tailwind` so an Ossie vendor-extension hook stays available (ADR-004 D2)."
+    },
+    "measure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "meta"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "type": {
+          "enum": [
+            "count",
+            "count_distinct",
+            "sum",
+            "avg",
+            "min",
+            "max",
+            "number"
+          ]
+        },
+        "sql": {
+          "$ref": "#/$defs/noTemplating"
+        },
+        "title": {
+          "type": "string"
+        },
+        "format": {
+          "enum": [
+            "percent",
+            "currency"
+          ]
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sql"
+            ],
+            "properties": {
+              "sql": {
+                "$ref": "#/$defs/noTemplating"
+              }
+            }
+          }
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        }
+      }
+    },
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "sql",
+        "type",
+        "meta"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "sql": {
+          "$ref": "#/$defs/noTemplating"
+        },
+        "type": {
+          "enum": [
+            "string",
+            "number",
+            "time",
+            "boolean"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "primary_key": {
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        }
+      }
+    },
+    "cube": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "meta"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "sql_table": {
+          "$ref": "#/$defs/noTemplating"
+        },
+        "sql": {
+          "$ref": "#/$defs/noTemplating",
+          "description": "ADR-003 D2: sql_table is preferred. A raw sql source is permitted only in files owned by the data-team CODEOWNERS entry; T-115 enforces that, the schema cannot."
+        },
+        "description": {
+          "type": "string"
+        },
+        "public": {
+          "const": false,
+          "description": "FR-SEM-02 / T-102: cubes are private. Dashboards reference views only."
+        },
+        "measures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/measure"
+          }
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dimension"
+          }
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        }
+      }
+    }
+  },
+  "description": "Cube whitelists top-level keys to cubes/views/view_groups, so spec_version rides in meta.tailwind instead. See ADR-004 Amendment (2026-08-12)."
+}

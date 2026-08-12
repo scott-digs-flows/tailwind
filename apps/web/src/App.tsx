@@ -1,61 +1,66 @@
 import { useEffect, useState } from 'react';
+import type { Dashboard } from '@tailwind/spec';
+import { fetchDashboard, type EnvelopeMeta } from './api';
+import { ChartCard } from './Chart';
 
-const API_BASE: string = import.meta.env.VITE_API_BASE ?? '/api';
-
-/** Mirrors ADR-006 D3. Will move to packages/spec once T-012 lands. */
-interface Envelope {
-  meta: {
-    bundle_version: string;
-    as_of: string;
-    freshness: { class: string; stale: boolean };
-    cache: string;
-    trace_id: string;
-    security_context_digest: string;
-  };
-  data: { status: string; service: string };
-}
+const DASHBOARD = 'sales_overview';
 
 export function App() {
-  const [env, setEnv] = useState<Envelope | null>(null);
+  const [dash, setDash] = useState<Dashboard | null>(null);
+  const [meta, setMeta] = useState<EnvelopeMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/healthz`)
-      .then((r) => (r.ok ? (r.json() as Promise<Envelope>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then(setEnv)
+    fetchDashboard(DASHBOARD)
+      .then((env) => {
+        setDash(env.data);
+        setMeta(env.meta);
+      })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
+  if (error !== null) return <main style={{ padding: '2rem' }}><p style={{ color: 'var(--bad)' }}>{error}</p></main>;
+  if (dash === null) return <main style={{ padding: '2rem', opacity: 0.6 }}>loading dashboard…</main>;
+
+  const cert = dash.meta.tailwind.certification;
+
   return (
-    <main style={{ fontFamily: 'ui-monospace, monospace', padding: '2rem', lineHeight: 1.7 }}>
-      <h1 style={{ fontSize: '1.1rem', margin: '0 0 1.5rem' }}>Tailwind — walking skeleton</h1>
+    <main style={{ padding: '1.5rem 2rem 3rem', maxWidth: 1440, margin: '0 auto' }}>
+      <header style={{ marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
+          <h1 style={{ fontSize: '1.35rem', margin: 0, letterSpacing: '-.01em' }}>{dash.title}</h1>
+          {/* FR-CON-02 / poc-scope 3.6: provenance is always visible. Trust behaviour is
+              a large part of what the pilot is meant to observe, so the badge is not optional. */}
+          <span
+            style={{
+              fontSize: '.6rem', textTransform: 'uppercase', letterSpacing: '.09em',
+              padding: '.16rem .45rem', borderRadius: 3,
+              color: cert === 'certified' ? 'var(--good)' : 'var(--warn)',
+              background: cert === 'certified' ? 'var(--good-bg)' : 'var(--warn-bg)',
+            }}
+          >
+            {cert}
+          </span>
+        </div>
+        <p style={{ margin: '.3rem 0 0', fontSize: '.78rem', color: 'var(--muted)' }}>
+          {dash.meta.tailwind.description}
+          {meta !== null && <> · bundle {meta.bundle_version} · freshness {dash.freshness.class}</>}
+        </p>
+      </header>
 
-      {error !== null && <p style={{ color: '#b00' }}>API unreachable: {error}</p>}
-      {error === null && env === null && <p>Calling /healthz…</p>}
-
-      {env !== null && (
-        <table>
-          <tbody>
-            {/* The trace id is the point: it proves the envelope survived the hop. */}
-            <Row label="trace_id" value={env.meta.trace_id} />
-            <Row label="bundle_version" value={env.meta.bundle_version} />
-            <Row label="as_of" value={env.meta.as_of} />
-            <Row label="freshness" value={`${env.meta.freshness.class} (stale=${String(env.meta.freshness.stale)})`} />
-            <Row label="cache" value={env.meta.cache} />
-            <Row label="security_ctx" value={env.meta.security_context_digest} />
-            <Row label="data" value={`${env.data.service}: ${env.data.status}`} />
-          </tbody>
-        </table>
-      )}
+      {/* 12-column grid, straight from the spec's layout block. */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(12, 1fr)',
+          gridAutoRows: '52px',
+          gap: '.85rem',
+        }}
+      >
+        {dash.charts.map((c) => (
+          <ChartCard key={c.id} chart={c} freshness={dash.freshness.class} />
+        ))}
+      </div>
     </main>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <tr>
-      <td style={{ paddingRight: '1.5rem', opacity: 0.6 }}>{label}</td>
-      <td>{value}</td>
-    </tr>
   );
 }

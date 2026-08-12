@@ -1,5 +1,5 @@
-import type { SecurityContext } from './security-context.ts';
-import { securityContextDigest } from './security-context.ts';
+import type { SecurityContext } from '@tailwind/semantic';
+import { securityContextDigest } from '@tailwind/semantic';
 
 /** FR-FRESH-01. Declared per artifact; only `standard` needs to work in the POC. */
 export type FreshnessClass = 'batch' | 'standard' | 'operational';

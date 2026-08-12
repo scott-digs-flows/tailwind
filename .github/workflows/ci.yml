@@ -37,6 +37,11 @@ jobs:
       - run: pnpm -r --if-present build
       - run: pnpm -r --if-present test
 
+      # FR-SEM-11: the same validator the app and the CLI use, run over the reviewed
+      # artifacts. If these three ever disagree about what is valid, the review gate lies.
+      - name: Validate specs
+        run: node packages/cli/src/main.ts validate content
+
       # The traceability gate. Mechanical rules belong in a check, not in memory.
       - name: Validate docs and backlog
         run: python3 scripts/validate_docs.py

@@ -283,3 +283,38 @@ POC ships exactly one tenant, `internal`. ADR-014 owns everything else about ten
 - Cube's data-model reference is the source for the profile mirror; it is documentation, not a
   schema, which is the reason D2 exists — <https://docs.cube.dev/reference/data-modeling/syntax>
 - JSON Schema 2020-12 — <https://json-schema.org/draft/2020-12/release-notes>
+
+---
+
+## Amendment: `spec_version` cannot be a top-level key on profile files (2026-08-12, found in T-014)
+
+D2 says *"Every file carries `spec_version: 1`."* For the two Cube-profile kinds that is not
+possible, and the constraint that breaks it is ADR-003 D2's — **the artifact a human reviews is
+byte-for-byte the artifact that executes.**
+
+Cube whitelists top-level YAML keys. A profile file carrying `spec_version` fails compilation with:
+
+```
+Unexpected YAML key: spec_version. Only 'cubes', 'views', and 'view_groups' are allowed here.
+```
+
+Stripping the key on the way into the engine would satisfy both documents and quietly break the
+byte-for-byte property that FR-GOV-11's audit story rests on — the reviewed file would no longer be
+the executed file. So the version moves instead.
+
+**Decision.** For `cube` and `view`, `spec_version` is a **required member of `meta.tailwind`**,
+which lives inside Cube's arbitrary `meta` and round-trips untouched. `dashboard` is Tailwind-native,
+Cube never parses it, and it keeps the top-level key.
+
+A test asserts the negative directly: a profile file with a top-level `spec_version` must be
+rejected by our validator, so the two cannot drift back together.
+
+**Second correction from the same session.** Cube's `access_policy` entries key on **`group` /
+`groups`; there is no `role`.** Our mirror had invented `role`, and Cube rejected it. Corrected in
+`view.json`. This is the mirror risk ADR-003's Correction 1 predicted — and the reason
+`context_to_groups` must be configured in `cube.js`, or `access_policy` fails open silently.
+
+**Worth generalising:** both errors were *ours*, in the hand-written mirror of an unpublished
+schema, and both surfaced only when a real engine parsed a real file. The mirror cannot be validated
+by inspection. T-097's conformance suite is the standing answer, and this is early evidence it is
+needed rather than nice to have.
