@@ -243,3 +243,27 @@ than a discovered one.
 - Tier definitions — NFR-SCALE-01; Tier-2 sizing rationale — Q-04 consequence 2.
 - DuckDB as the `development` tier and the CI-credential payoff — `06-dialect-strategy.md §11.5`.
 - Cube Store HA limitation and the Cloud upsell it creates — ADR-003 D1a; spike is T-118.
+
+---
+
+## Amendment: OpenTofu, not Terraform (Product, 2026-08-10)
+
+This ADR says "Terraform". **We use OpenTofu.** The binary is `tofu`; everything else in D2 stands —
+same HCL, same providers, same four cloud primitives.
+
+**Why.** HashiCorp relicensed Terraform from MPL-2.0 to BUSL 1.1 in August 2023, and Homebrew's core
+policy consequently dropped the formula. BUSL is legally fine for provisioning our own
+infrastructure — its restriction targets offering a competing product to Terraform — but ADR-003
+rejected a BSL-licensed candidate *by name* (OrionBelt) and D1a established a standing rule against
+depending on gated or non-open components. Adopting BUSL tooling one ADR later is an inconsistency
+worth not carrying, particularly with Q-03 keeping SaaS in the back pocket.
+
+OpenTofu is MPL-2.0, Linux Foundation governed, forked from Terraform 1.5.x, and in `homebrew/core`
+with no tap. At D2's scale — four resources, under 100 lines — there is nothing to be incompatible
+with.
+
+**Consequence:** CI and any scripts invoke `tofu`, not `terraform`. The formula conflicts with
+`tenv`, which installs the same binary name.
+
+**Revisit when:** OpenTofu's provider ecosystem diverges in a way that costs us a provider we need,
+or the licensing position changes.

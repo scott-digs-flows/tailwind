@@ -1,3 +1,14 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# pnpm blocks dependency build scripts by default -- a supply-chain guard we keep.
+# NOTE: pnpm 11 uses this `allowBuilds` MAP. The `onlyBuiltDependencies` /
+# `neverBuiltDependencies` lists you'll find in most docs are pnpm 10 syntax and are
+# silently ignored here. Edit via `pnpm approve-builds <pkg>` / `'!<pkg>'`.
+#
+#   esbuild: declined. It ships its platform binary as an optional dependency
+#   (@esbuild/darwin-arm64), so the postinstall is a no-op for us -- verified by
+#   building the web app with the script unrun. A reviewed decline, not a grant.
+allowBuilds:
+  esbuild: false
