@@ -1,0 +1,86 @@
+# ADR-001: ONE topology description. This is the local dev loop AND what runs on the VM.
+# Versions come from infra/versions.env -- never hardcode a tag here.
+#   docker compose --env-file infra/versions.env -f infra/docker-compose.yml up
+name: tailwind
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      args: { NODE_VERSION: "${NODE_VERSION}" }
+    environment:
+      PORT: "3001"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      TAILWIND_BUNDLE_VERSION: "${TAILWIND_BUNDLE_VERSION:-dev}"
+      CUBE_URL: "http://cube:4000/cubejs-api/v1"
+      DATABASE_URL: "postgres://tailwind:tailwind@postgres:5432/tailwind"
+      REDIS_URL: "redis://redis:6379"
+    ports: ["3001:3001"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      cube:     { condition: service_started }
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NODE_VERSION: "${NODE_VERSION}"
+        NGINX_VERSION: "${NGINX_VERSION}"
+    ports: ["8080:80"]
+    depends_on: [api]
+
+  # Cube Core, self-hosted, Apache-2.0 only. NO Cloud features (ADR-003 D1a).
+  cube:
+    image: "cubejs/cube:${CUBE_VERSION}"
+    environment:
+      # --- T-132 hardening baseline, verbatim from ADR-003. Do not edit casually. ---
+      CUBEJS_DEV_MODE: "false"
+      # The one that must never be dropped: without it the container boots, /readyz
+      # passes, and /v1/load throws at QUERY time. A healthy-looking broken deploy.
+      CUBEJS_CACHE_AND_QUEUE_DRIVER: "memory"
+      CUBEJS_DEFAULT_API_SCOPES: "meta,data,sql"
+      CUBEJS_TESSERACT_SQL_PLANNER: "true"
+      # Deliberately UNSET: CUBEJS_PG_SQL_PORT (Postgres-wire API off),
+      # CUBEJS_CUBESTORE_HOST + CUBEJS_REFRESH_WORKER (not needed with pre-aggs off,
+      # see T-118), and every CUBEJS_REDIS_* (removed in v0.32.0 -- now a hard error).
+      # --- end T-132 ---
+      CUBEJS_DB_TYPE: "duckdb"          # development-tier dialect: no warehouse creds (Q-01 unblocked)
+      CUBEJS_API_SECRET: "${CUBEJS_API_SECRET:-dev-only-not-a-secret}"
+      CUBEJS_LOG_LEVEL: "${CUBEJS_LOG_LEVEL:-warn}"
+    volumes:
+      # The reviewed artifacts ARE the model. Read-only: Cube never writes to git-owned content.
+      - ../content/tenants/internal/semantic:/cube/conf/model:ro
+    ports: ["4000:4000"]
+
+  # Operational DB: job records, audit log, drafts. Never holds anything that changes a number.
+  postgres:
+    image: "postgres:${POSTGRES_VERSION}-alpine"
+    environment:
+      POSTGRES_USER: tailwind
+      POSTGRES_PASSWORD: tailwind
+      POSTGRES_DB: tailwind
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tailwind -d tailwind"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # OUR Redis -- result cache and job event log (ADR-006 D3 externalizes job state).
+  # Not Cube's: Cube dropped Redis in v0.32.0 and a stray CUBEJS_REDIS_* hard-errors.
+  redis:
+    image: "redis:${REDIS_VERSION}-alpine"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

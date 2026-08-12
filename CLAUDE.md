@@ -65,6 +65,13 @@ Two corollaries worth internalizing:
 
 **Decisions:** [`docs/adr/`](docs/adr/) — numbers assigned in `02-architecture-brief.md §4`.
 
+**Toolchain gotcha (pnpm 11).** Dependency build scripts are blocked by default. The allowlist is
+an **`allowBuilds` map** in `pnpm-workspace.yaml`, edited via `pnpm approve-builds <pkg>` or
+`pnpm approve-builds '!<pkg>'` to decline. The `onlyBuiltDependencies` / `neverBuiltDependencies`
+*lists* in most documentation are **pnpm 10 syntax and are silently ignored** — they parse, they read
+back from `pnpm config get`, and they do nothing. Never reach for `dangerouslyAllowAllBuilds`.
+CI installs with `--frozen-lockfile` so this state cannot drift between a laptop and the build.
+
 **Validate before committing:**
 
 ```bash
