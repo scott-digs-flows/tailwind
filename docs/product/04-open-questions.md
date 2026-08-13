@@ -10,38 +10,28 @@ unchallenged, we build to it — silence is an answer, just an expensive one to 
 
 ## Blocking M0 kickoff
 
-### Q-01 — What is the warehouse of record, and how many SQL dialects must GA support?
-**Status: OPEN — under discussion.** The Q-02 and Q-03 decisions reshaped this question; see the
-full analysis in [06-dialect-strategy.md](06-dialect-strategy.md).
+### Q-01 — Warehouse of record and dialect tiers ✅ ANSWERED 2026-08-13
+**Decision: ClickHouse is the warehouse of record.** DuckDB remains the `development` tier so the
+build and CI need no credentials and no spend.
 
-**Short version:** adopting a metrics engine (Q-02) means we no longer *write* dialects — we
-inherit them. The cost of a dialect shifts from implementation to **certification**: conformance
-testing, a live warehouse in CI forever, a cost model, RLS primitives, and perf tuning. Meanwhile
-carrying a tenant ID (Q-03) makes dialect count a market-reach question, not just an engineering
-one.
+**Two recorded objections, both overridden by Product, both retained rather than deleted** — if
+this is revisited, the reasoning should be visible:
 
-**Working recommendation:** exactly **one Certified** dialect at GA, a published support-tier
-model so we can name additional dialects honestly without paying for them, and a dialect
-conformance suite built in M0 so the price of dialect #2 is a known number rather than an argument.
+1. `engines.yaml`, written by this team, calls ClickHouse *"the most idiosyncratic SQL dialect
+   here"* — it flattens the Iceberg namespace into the quoted table name and is case-sensitive.
+   [`06-dialect-strategy.md §8`](06-dialect-strategy.md) criterion 3 argues an idiosyncratic first
+   dialect hides assumptions until dialect #2 exposes them at once.
+2. The architect's §11.6 default was **Trino** certified, ClickHouse not first, partly because Cube
+   carries a known defect in **multi-fact views** — the mechanism that handles chasm traps, and the
+   ×3-weighted criterion Cube won ADR-003 on.
 
-**Architect responded 2026-08-10** — [`06-dialect-strategy.md §11`](06-dialect-strategy.md). In
-short: agrees with one Certified dialect but on correctness rather than cost grounds; agrees the
-conformance suite belongs in M0 but repoints it (its first job is acceptance-testing the engine we
-just adopted, and its M0 scope should be ~20 cases, not the full matrix — T-097 rescoped); argues
-the tier should be *derived from CI* rather than declared, and that the matrix should be published
-at GA rather than during the POC; adds a fourth `development` tier for the local/CI dialect; and
-resolves the ADR-002 ↔ ADR-003 circularity by confirming the selected engine certifies every
-`engines.yaml` candidate, so **ADR-002 is unconstrained by ADR-003**. FR-SEM-12/13 amended
-accordingly. Default recommendation absent Q-07/T-088: **Trino** certified, **DuckDB**
-development-tier, ClickHouse and Postgres not first.
+**How the objections get settled: measurement, not argument.** T-097 exists so the price of a
+dialect is a number. The conformance suite runs against ClickHouse and the result decides the tier
+(FR-SEM-12: a tier is a *computed conformance result*, not a claim). If the chasm cases fail on
+ClickHouse, that is a concrete, ticketed problem rather than a worry — and it is far cheaper to
+discover now than during the pilot.
 
-**Sub-questions that need an answer regardless:**
-- Where does the majority of existing Tableau/Power BI content point? That plus Q-07 settles
-  "which one" almost by itself.
-- **Is there a warehouse in the org that is not in `engines.yaml`?** If the real estate is
-  Snowflake or BigQuery, the recommendation above is void.
-- Does the org run dbt — and, the version of that question that actually decides anything, see
-  Q-02 below.
+**Unblocks:** ADR-002, and the 107 tickets that sat behind T-001.
 
 ### Q-02 — Semantic layer: adopt an existing engine, or build our own? ✅ DECIDED 2026-08-10
 **Decision: adopt an existing metrics engine.** We do not build a metrics engine.

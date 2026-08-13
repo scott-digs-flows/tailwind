@@ -26,7 +26,7 @@ here.
 | ADR | Decision | Milestone | Status |
 |---|---|---|---|
 | ADR-001 | [Deployment — one VM, one Compose file, one environment](ADR-001-deployment-target-and-topology.md) | M0 | **Accepted** 2026-08-10 |
-| ADR-002 | Warehouse of record; dialect support tiers | M0 | Not started — waits on Q-01 (Product) |
+| ADR-002 | Warehouse of record; dialect support tiers | M0 | Q-01 answered: **ClickHouse**, certified by conformance (T-135/T-136). ADR to be written up. |
 | ADR-003 | [Semantic engine selection — Cube Core behind a Tailwind façade](ADR-003-semantic-engine-selection.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-004 | [Spec format, repository layout, canonical serializer](ADR-004-spec-format-and-repository-layout.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-005 | [Front-end stack and chart library](ADR-005-frontend-stack-and-chart-library.md) | M0 | **Accepted** 2026-08-10 |

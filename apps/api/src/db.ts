@@ -32,7 +32,7 @@ let redis: RedisClientType | undefined;
 export function getPool(): pg.Pool {
   if (pool === undefined) {
     pool = new pg.Pool({
-      connectionString: process.env['DATABASE_URL'] ?? 'postgres://tailwind:tailwind@localhost:5432/tailwind',
+      connectionString: process.env['DATABASE_URL'] ?? 'postgres://tailwind:tailwind@localhost:7432/tailwind',
       max: Number(process.env['PG_POOL_MAX'] ?? 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
@@ -43,7 +43,7 @@ export function getPool(): pg.Pool {
 
 export async function getRedis(): Promise<RedisClientType> {
   if (redis === undefined) {
-    redis = createClient({ url: process.env['REDIS_URL'] ?? 'redis://localhost:6379' });
+    redis = createClient({ url: process.env['REDIS_URL'] ?? 'redis://localhost:7379' });
     redis.on('error', () => undefined); // handled by the health check, not by crashing
     await redis.connect();
   }

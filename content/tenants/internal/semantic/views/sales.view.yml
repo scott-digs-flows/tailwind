@@ -1,31 +1,41 @@
 views:
   - name: sales
     title: Sales
-    description: The certified surface dashboards may reference.
+    description: Certified AdventureWorks sales surface. The only thing dashboards may reference.
     cubes:
-      # Join paths are declared from the fact outward, so the view spans the whole
-      # topology: lines -> order header -> customer, and tickets -> customer.
-      - join_path: order_lines
+      - join_path: fact_reseller_sales
         includes:
-          - revenue
-          - line_count
-          - category
-      - join_path: order_lines.orders_hdr
+          - reseller_sales
+          - reseller_order_quantity
+          - reseller_line_count
+          - reseller_order_date
+      # Reached THROUGH the lines, so a header measure grouped by a line dimension has
+      # to traverse the one-to-many -- which is what makes the trap reachable.
+      - join_path: fact_reseller_sales.reseller_order
         includes:
-          - freight
+          - order_freight
           - order_count
-          - order_date
-      # Root-level, NOT nested behind order_lines: a multi-fact query (freight and
-      # ticket_hours together) needs every fact to reach the shared dimension directly.
-      # Nested here, Cube cannot find one join tree spanning both facts.
-      - join_path: customers
+          - order_placed_at
+      - join_path: fact_internet_sales
         includes:
-          - customer_count
+          - internet_sales
+          - internet_line_count
+          - internet_order_date
+      # Root-level: a multi-fact query needs every fact to reach the shared dimension
+      # directly, not nested behind one of them.
+      - join_path: dim_product
+        includes:
+          - product_count
+          - product_standard_cost
+          - product_name
+          - color
+          - product_line
+      - join_path: dim_sales_territory
+        includes:
+          - territory_count
           - region
-          - segment
-      - join_path: tickets
-        includes:
-          - ticket_hours
+          - country
+          - territory_group
     access_policy:
       - group: analyst
         row_level:
@@ -33,13 +43,13 @@ views:
             []
         member_level:
           includes: '*'
-      - group: west_only
+      - group: europe_only
         row_level:
           filters:
-            - member: sales.region
+            - member: sales.territory_group
               operator: equals
               values:
-                - West
+                - Europe
         member_level:
           includes: '*'
     meta:
@@ -48,4 +58,4 @@ views:
         owner: data-team
         description: Certified sales surface for dashboards.
         certification: certified
-        last_reviewed: '2026-08-12'
+        last_reviewed: '2026-08-13'

@@ -14,9 +14,16 @@ node packages/cli/src/main.ts validate content >/dev/null
 
 echo "publishing…"
 "${COMPOSE[@]}" restart cube >/dev/null
+
+# T-118 established that /readyz passes while the model is unusable -- the container
+# boots, health checks go green, and the first real query throws. So readiness is
+# proven with an ACTUAL query, not with a health endpoint.
 for _ in $(seq 1 60); do
-  curl -sf http://localhost:4000/readyz >/dev/null 2>&1 && break
+  if node packages/semantic/test/manual/ping.ts >/dev/null 2>&1; then
+    echo "published."
+    exit 0
+  fi
   sleep 1
 done
-sleep 2
-echo "published."
+echo "publish FAILED: Cube did not serve a query within 60s" >&2
+exit 1

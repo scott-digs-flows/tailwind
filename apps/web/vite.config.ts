@@ -10,7 +10,7 @@ export default defineConfig({
     // and there is no CORS layer to configure in the POC.
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:7001',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ''),
       },

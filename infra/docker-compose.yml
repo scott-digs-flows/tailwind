@@ -24,7 +24,7 @@ services:
       # Reviewed artifacts, read-only. In M0 the "bundle" is the working tree; the
       # immutable per-merge bundle is ADR-007 / T-029.
       - ../content:/srv/content:ro
-    ports: ["3001:3001"]
+    ports: ["${API_PORT}:3001"]
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
@@ -37,12 +37,16 @@ services:
       args:
         NODE_VERSION: "${NODE_VERSION}"
         NGINX_VERSION: "${NGINX_VERSION}"
-    ports: ["8080:80"]
+    ports: ["${WEB_PORT}:80"]
     depends_on: [api]
 
   # Cube Core, self-hosted, Apache-2.0 only. NO Cloud features (ADR-003 D1a).
   cube:
     image: "cubejs/cube:${CUBE_VERSION}"
+    # Q-01: ClickHouse is the warehouse of record, and it lives in the
+    # data-warehouse-local stack. We join its network rather than running a second
+    # ClickHouse -- one warehouse, one copy of the data, no sync to drift.
+    networks: [default, warehouse-net]
     environment:
       # --- T-132 hardening baseline, verbatim from ADR-003. Do not edit casually. ---
       CUBEJS_DEV_MODE: "false"
@@ -55,7 +59,17 @@ services:
       # CUBEJS_CUBESTORE_HOST + CUBEJS_REFRESH_WORKER (not needed with pre-aggs off,
       # see T-118), and every CUBEJS_REDIS_* (removed in v0.32.0 -- now a hard error).
       # --- end T-132 ---
-      CUBEJS_DB_TYPE: "duckdb"          # development-tier dialect: no warehouse creds (Q-01 unblocked)
+      # ClickHouse is the warehouse of record and the ONLY dialect (Q-01). It runs as a
+      # container, so there is no cloud credential in the build path and no second
+      # dialect to keep in parity.
+      CUBEJS_DB_TYPE: "${CUBEJS_DB_TYPE:-clickhouse}"
+      CUBEJS_DB_HOST: "${CUBEJS_DB_HOST:-clickhouse}"
+      CUBEJS_DB_PORT: "${CUBEJS_DB_PORT:-8123}"
+      CUBEJS_DB_NAME: "${CUBEJS_DB_NAME:-datalake}"
+      CUBEJS_DB_USER: "${CUBEJS_DB_USER:-default}"
+      # The catalog is read-only (engines.yaml: "Reads Iceberg via DataLakeCatalog.
+      # Read-only."), so tell the driver rather than letting it discover that at runtime.
+      CUBEJS_DB_CLICKHOUSE_READONLY: "true"
       CUBEJS_API_SECRET: "${CUBEJS_API_SECRET:-dev-only-not-a-secret}"
       CUBEJS_LOG_LEVEL: "${CUBEJS_LOG_LEVEL:-warn}"
     volumes:
@@ -64,9 +78,7 @@ services:
       # access_policy failing open (ADR-003 Correction 1).
       - ../infra/cube/cube.js:/cube/conf/cube.js:ro
       - ../content/tenants/internal/semantic:/cube/conf/model:ro
-      # Development-tier data. DuckDB reads it in place -- no warehouse, no credentials.
-      - ../infra/seed:/cube/conf/seed:ro
-    ports: ["4000:4000"]
+    ports: ["${CUBE_PORT}:4000"]
 
   # Operational DB: job records, audit log, drafts. Never holds anything that changes a number.
   postgres:
@@ -76,7 +88,7 @@ services:
       POSTGRES_PASSWORD: tailwind
       POSTGRES_DB: tailwind
     volumes: ["pgdata:/var/lib/postgresql/data"]
-    ports: ["5432:5432"]
+    ports: ["${POSTGRES_PORT}:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tailwind -d tailwind"]
       interval: 3s
@@ -88,12 +100,19 @@ services:
   redis:
     image: "redis:${REDIS_VERSION}-alpine"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
-    ports: ["6379:6379"]
+    ports: ["${REDIS_PORT}:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
       timeout: 3s
       retries: 20
+
+networks:
+  default:
+  # Owned by data-warehouse-local. `docker compose --profile engines up -d` there
+  # creates it; we only attach.
+  warehouse-net:
+    external: true
 
 volumes:
   pgdata:

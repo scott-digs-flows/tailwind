@@ -34,24 +34,53 @@ function mintToken(secret: string, ctx: SecurityContext): string {
   return `${header}.${payload}.${sig}`;
 }
 
+/**
+ * Cube long-polls: while a query is still computing it answers HTTP 200 with
+ * `{"error":"Continue wait"}` and expects the SAME request to be re-sent. Treating
+ * that as a failure makes queries fail intermittently on a cold model or under load --
+ * the worst kind of bug, because it passes every time you test it warm.
+ */
+const CONTINUE_WAIT = 'Continue wait';
+const MAX_WAIT_MS = 30_000;
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 async function post(opts: CubeClientOptions, path: string, body: unknown, ctx: SecurityContext): Promise<unknown> {
-  const res = await fetch(`${opts.url}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: mintToken(opts.apiSecret, ctx) },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error(`Cube returned non-JSON (HTTP ${res.status}): ${text.slice(0, 200)}`);
+  const deadline = Date.now() + MAX_WAIT_MS;
+  let attempt = 0;
+
+  for (;;) {
+    const res = await fetch(`${opts.url}${path}`, {
+      method: 'POST',
+      // A fresh token per attempt: the 120s expiry could otherwise lapse mid-wait.
+      headers: { 'Content-Type': 'application/json', Authorization: mintToken(opts.apiSecret, ctx) },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new Error(`Cube returned non-JSON (HTTP ${res.status}): ${text.slice(0, 200)}`);
+    }
+    const err = (parsed as { error?: string }).error;
+
+    if (err === CONTINUE_WAIT) {
+      if (Date.now() >= deadline) {
+        throw new Error(`Cube did not finish within ${MAX_WAIT_MS}ms (still "${CONTINUE_WAIT}")`);
+      }
+      // Gentle backoff, capped: Cube is already blocking server-side, so this is a
+      // reconnect interval rather than a poll interval.
+      attempt += 1;
+      await sleep(Math.min(250 * attempt, 1_000));
+      continue;
+    }
+
+    if (!res.ok || typeof err === 'string') {
+      throw new Error(`Cube error (HTTP ${res.status}): ${err ?? text.slice(0, 200)}`);
+    }
+    return parsed;
   }
-  const err = (parsed as { error?: string }).error;
-  if (!res.ok || typeof err === 'string') {
-    throw new Error(`Cube error (HTTP ${res.status}): ${err ?? text.slice(0, 200)}`);
-  }
-  return parsed;
 }
 
 /** Generated SQL WITHOUT executing it -- FR-CON-02's "how is this calculated?". */

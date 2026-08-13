@@ -7,7 +7,7 @@ import { health } from './db.ts';
 import { recordQuery } from './audit.ts';
 
 const cube: CubeClientOptions = {
-  url: process.env['CUBE_URL'] ?? 'http://localhost:4000/cubejs-api/v1',
+  url: process.env['CUBE_URL'] ?? 'http://localhost:7400/cubejs-api/v1',
   apiSecret: process.env['CUBEJS_API_SECRET'] ?? 'dev-only-not-a-secret',
 };
 

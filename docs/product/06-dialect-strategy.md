@@ -328,3 +328,112 @@ models / MetricFlow today?"** Only the second would change ADR-003. Add one more
 
 - **Is there a warehouse in the org that is not in `engines.yaml`?** If the real estate is
   Snowflake or BigQuery, §11.6's default is void and the pilot should start there instead.
+
+---
+
+## §12 — First conformance run against ClickHouse (T-135, 2026-08-13)
+
+**Result: 19/19 cases pass — and the tier is NOT certified, because the negative control failed.**
+
+That combination is the entire reason §5 insisted on negative controls, so it is worth stating
+plainly rather than burying: *a suite that still passes when the mechanism under test is disabled
+is not testing the mechanism.* With `fact_reseller_sales → dim_product` deliberately mis-declared
+as `one_to_one`, **all 19 cases still passed.**
+
+### Why
+
+The generated SQL says it exactly. On the AdventureWorks model as written:
+
+- `product_standard_cost` alone compiles to `SELECT sum(standard_cost) FROM dim_product` — the
+  one-to-many is never traversed.
+- `product_standard_cost` with `reseller_sales` compiles to **multi-fact CTEs**: each cube is
+  aggregated independently and the results combined.
+- The one query that *would* force product → fact → territory traversal is **refused** by Cube
+  (no join path between two dimension tables).
+
+So every case labelled `fan-out` is really exercising **multi-fact aggregation**, which is a
+different mechanism and one that does not depend on the declared cardinality. Cube's
+deduplication-subquery path — the thing ADR-003 weighted ×3 — is never reached.
+
+**This is a defect in our model and our cases, not in ClickHouse.** ClickHouse answered every
+question correctly, including the 156×-wrong fan-out figure it avoided. But "it passed" carries no
+information here, and reporting a tier on this basis would have been exactly the false green the
+negative control exists to prevent.
+
+### What the model is missing
+
+A **header/detail topology**. The synthetic model had one (`orders_hdr` → `order_lines`, with
+freight held per order). AdventureWorks as modelled has measures on *dimension* tables instead,
+which Cube treats as facts — and facts never fan out into each other.
+
+`fact_reseller_sales` does carry the ingredients: `sales_order_number` groups several
+`sales_order_line_number` rows. An order-header cube derived from it, joined one-to-many to the
+lines, with an order-level measure, would force the traversal.
+
+### Consequence for the tier
+
+**ClickHouse is `unverified`, not `certified`.** FR-SEM-12 says a tier is a computed conformance
+result; this run computed nothing about fan-out. Tracked as **T-136** — restore a header/detail
+topology, confirm the negative control fires, and only then compute a tier.
+
+### Two smaller findings from the same run
+
+- **A measure on a dimension table makes that cube a fact.** Two facts sharing a dimension each
+  need a *direct* join to it, so `product cost by territory` is refused rather than answered.
+  Correct behaviour — the question is genuinely ambiguous — but it is a modelling hazard worth a
+  lint rule, and an argument for using a fact's own cost column instead.
+- **The conformance report named the wrong dialect.** It printed `dialect=duckdb` while querying
+  ClickHouse, because the label came from an env-var default rather than from the engine. A report
+  that misattributes a tier to an untested warehouse is worse than no report. Now read from the
+  running container.
+
+### §12.1 — Re-run after T-136: ClickHouse is `certified`
+
+The header/detail topology was missing, not the engine's correctness. `fact_reseller_sales`
+groups several `sales_order_line_number` rows under one `sales_order_number`, so an order-header
+cube derived from the fact — joined `many_to_one` from the lines — restores the traversal that
+`dim_product` measures never forced.
+
+**Result: 23/23 pass, and the negative control fires.** With the cardinality mis-declared as
+`one_to_one`, four trap cases fail and return numbers that look entirely plausible:
+
+| | correct | mechanism disabled |
+|---|---|---|
+| order freight | 2,011,265.92 | **63,422,668.30** (31.5×) |
+| order count | 3,796 | **60,855** — it counted lines |
+| freight by product line | 832,002 for line `M` | **17,566,125** |
+
+Those are exactly the fanned-out figures the oracle predicted independently. The queries still
+*ran*; they simply lied. That is the failure mode the product exists to prevent, reproducible on
+demand.
+
+**Tier: `certified`** — computed from a conformance result on a pinned engine version
+(Cube v1.7.18, ClickHouse 26.7.3.19), per FR-SEM-12, not declared.
+
+**The Q-01 objections are settled by measurement.** The architect's multi-fact defect did not
+appear on this topology, and ClickHouse's flattened-namespace quirk (`datalake."raw.dim_product"`)
+was handled by `sql_table:` without special casing. The idiosyncrasy argument in §8 stands as a
+general caution but did not bite here.
+
+### §12.2 — The DuckDB development tier is retired (Product, 2026-08-13)
+
+Product's answer to Q-01 was **ClickHouse**, and DuckDB was carried forward as a `development`
+tier that nobody asked for. Retiring it, because **the reasoning that justified it does not
+survive the choice.**
+
+§11.5 argued for a `development` tier so CI could run the conformance suite with *no warehouse
+credentials and no spend*. That argument assumes the certified dialect is a **cloud** warehouse.
+ClickHouse is a container. CI runs it the same way it runs Postgres — no credentials, no spend, no
+second dialect to keep in parity.
+
+**What retiring it costs, stated honestly:** the `development` tier was also going to buy
+differential testing — the same suite on two engines, disagreements as a correctness oracle
+(§11.5). That is a genuine loss. It is not worth maintaining table-name parity across two engines
+forever to keep it, and T-097's negative control already covers the failure mode differential
+testing was aimed at: a mechanism that silently is not working.
+
+**The tier model keeps three tiers, not four.** `certified` · `beta` · `experimental`. The
+`development` tier existed for one engine's convenience and no longer has an occupant.
+
+**Consequence:** CI must run ClickHouse. Tracked as **T-137**, rescoped from "restore DuckDB" to
+"run ClickHouse in CI". Until it lands, the conformance suite runs locally only.

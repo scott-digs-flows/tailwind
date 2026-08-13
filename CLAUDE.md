@@ -12,8 +12,8 @@ still no application code; T-010 (repo scaffold) is the next thing to land.
 React + Vite front end, one shared `packages/spec` for schemas, parsing and the canonical YAML
 serializer. Apache ECharts behind a narrow adapter, rendered headlessly in Node for CI screenshots
 and PDF (no browser). Cube Core, version-pinned, behind a Tailwind façade, with its own caching off.
-One VM running the same Docker Compose file as the local dev loop. DuckDB is the development-tier
-dialect, so nothing needs warehouse credentials.
+One VM running the same Docker Compose file as the local dev loop. **ClickHouse is the warehouse of
+record** (Q-01) and the only dialect — it runs as a container, so CI needs no cloud credentials.
 
 `engines.yaml` at the root is a **candidate list, not a decision** — warehouse engines the team has
 already connected to, with real operational notes (DSNs, identifier casing, per-engine quirks).
@@ -76,8 +76,8 @@ CI installs with `--frozen-lockfile` so this state cannot drift between a laptop
 
 ```bash
 docker compose --env-file infra/versions.env -f infra/docker-compose.yml up -d
-# http://localhost:8080  -- the dashboard
-# http://localhost:4000  -- Cube
+# http://localhost:7080  -- the dashboard
+# http://localhost:7400  -- Cube
 ./scripts/publish.sh                  # after editing anything under content/
 ./scripts/verify-walking-skeleton.sh  # proves a metric edit moves the number (T-011)
 ```
@@ -105,8 +105,8 @@ with the architect; drifting tickets away from them silently is how handoffs fai
 Nineteen tracked in [04-open-questions.md](docs/product/04-open-questions.md), each with a working
 assumption. **Silence is an answer** — unchallenged assumptions get built. Still blocking M0:
 
-- **Q-01** warehouse of record and dialect tiers ([working paper](docs/product/06-dialect-strategy.md)) —
-  blocks ADR-002 only; the skeleton builds against DuckDB with no credentials
+- ✅ **Q-01 answered: ClickHouse**, single dialect, `certified` by conformance result
+  ([working paper §12](docs/product/06-dialect-strategy.md)). ADR-002 is unblocked.
 - The OPEN integration rows in [07-domain-model.md §4](docs/product/07-domain-model.md) — secret
   store and observability standards are the two that can still invalidate an ADR
 

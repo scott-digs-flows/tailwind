@@ -1,48 +1,57 @@
 cubes:
-  - name: customers
-    sql: SELECT * FROM read_csv_auto('/cube/conf/seed/customers.csv', header = true)
+  - name: dim_sales_territory
+    sql_table: datalake.`raw.dim_sales_territory`
     public: false
     measures:
-      - name: customer_count
+      - name: territory_count
         type: count
         meta:
           tailwind:
             spec_version: 1
             owner: data-team
-            description: Number of customers.
+            description: Number of territories.
             certification: certified
     dimensions:
-      - name: customer_id
-        sql: customer_id
+      - name: sales_territory_key
+        sql: sales_territory_key
         type: number
         primary_key: true
         meta:
           tailwind:
             spec_version: 1
             owner: data-team
-            description: Customer identifier.
+            description: Territory surrogate key.
             certification: certified
       - name: region
-        sql: region
+        sql: sales_territory_region
         type: string
         meta:
           tailwind:
             spec_version: 1
             owner: data-team
-            description: Sales region.
+            description: Territory region.
             certification: certified
-      - name: segment
-        sql: segment
+      - name: country
+        sql: sales_territory_country
         type: string
         meta:
           tailwind:
             spec_version: 1
             owner: data-team
-            description: Customer segment.
+            description: Territory country.
+            certification: certified
+      - name: territory_group
+        sql: sales_territory_group
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Territory group.
             certification: certified
     meta:
       tailwind:
         spec_version: 1
         owner: data-team
-        description: One row per customer.
+        description: AdventureWorks sales territory dimension.
         certification: certified

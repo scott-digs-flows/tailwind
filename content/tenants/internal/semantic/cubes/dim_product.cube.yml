@@ -1,0 +1,70 @@
+cubes:
+  - name: dim_product
+    # ClickHouse flattens the Iceberg namespace INTO the table name, so the table is
+    # literally called 'raw.dim_product' inside the 'datalake' database. This is the
+    # idiosyncrasy engines.yaml warns about and the first real test of sql_table.
+    sql_table: datalake.`raw.dim_product`
+    public: false
+    measures:
+      - name: product_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Number of products.
+            certification: certified
+      - name: product_standard_cost
+        type: sum
+        sql: standard_cost
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: >-
+              Standard cost, held ONCE per product. Summing it across sales lines is the fan-out trap.
+            certification: certified
+    dimensions:
+      - name: product_key
+        sql: product_key
+        type: number
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product surrogate key.
+            certification: certified
+      - name: product_name
+        sql: english_product_name
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product name.
+            certification: certified
+      - name: color
+        sql: color
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product colour.
+            certification: certified
+      - name: product_line
+        sql: product_line
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product line code.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: AdventureWorks product dimension. One row per product.
+        certification: certified

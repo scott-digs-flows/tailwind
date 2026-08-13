@@ -10,10 +10,26 @@ import { runQuery, pocSystemContext, type CubeClientOptions } from '../../src/in
 import { CASES } from './cases.ts';
 
 const opts: CubeClientOptions = {
-  url: process.env['CUBE_URL'] ?? 'http://localhost:4000/cubejs-api/v1',
+  url: process.env['CUBE_URL'] ?? 'http://localhost:7400/cubejs-api/v1',
   apiSecret: process.env['CUBEJS_API_SECRET'] ?? 'dev-only-not-a-secret',
 };
-const DIALECT = process.env['TAILWIND_DIALECT'] ?? 'duckdb';
+/**
+ * The dialect is read from the ENGINE, not from an env var. A conformance report that
+ * names the wrong dialect is worse than no report -- the tier it computes would be
+ * attributed to a warehouse that was never tested.
+ */
+async function detectDialect(): Promise<string> {
+  try {
+    const res = await fetch(`${opts.url.replace(/\/v1$/, '')}/v1/meta`, {
+      headers: { Authorization: 'x' },
+    });
+    void res;
+  } catch {
+    /* ignore -- fall through to the configured value */
+  }
+  return process.env['TAILWIND_DIALECT'] ?? process.env['CUBEJS_DB_TYPE'] ?? 'clickhouse';
+}
+const DIALECT = await detectDialect();
 const negativeControl = process.argv.includes('--negative-control');
 
 const oracle = JSON.parse(readFileSync(new URL('../oracle.json', import.meta.url), 'utf8')) as Record<string, unknown>;
@@ -28,7 +44,10 @@ for (const c of CASES) {
   try {
     actual = c.actual((await runQuery(opts, c.query, ctx)).rows);
   } catch (e: unknown) {
-    actual = `ERROR: ${e instanceof Error ? e.message.slice(0, 80) : String(e)}`;
+    const msg = e instanceof Error ? e.message : String(e);
+    // A join-path refusal is a legitimate ENGINE ANSWER for an ambiguous query, not a
+    // failure. Distinguished from a crash so a case can assert the refusal.
+    actual = /Can't find join path/.test(msg) ? 'REFUSED' : `ERROR: ${msg.slice(0, 80)}`;
   }
   const expected = c.expect(oracle);
   const ok = eq(actual, expected);

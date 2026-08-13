@@ -1,34 +1,50 @@
 {
-  "total_line_amount": 258004.2,
-  "total_freight": 3304.32,
-  "order_count": 94,
-  "line_count": 243,
-  "customer_count": 40,
-  "total_ticket_hours": 242.14,
-  "distinct_customers_with_orders": 40,
-  "freight_by_region": {
-    "East": 899.11,
-    "North": 711.79,
-    "South": 826.79,
-    "West": 866.63
+  "total_reseller_sales": 80450596.98,
+  "total_internet_sales": 29358677.22,
+  "reseller_line_count": 60855,
+  "internet_line_count": 60398,
+  "product_count": 606,
+  "territory_count": 11,
+  "total_product_standard_cost": 171535.0,
+  "reseller_sales_by_product_line": {
+    "": 540248.8,
+    "M ": 32205548.04,
+    "R ": 33637946.58,
+    "S ": 1935348.29,
+    "T ": 12131505.28
   },
-  "freight_by_region_IF_FANNED_OUT": {
-    "East": 2357.93,
-    "North": 1807.28,
-    "South": 2210.19,
-    "West": 2127.74
+  "standard_cost_by_product_line_dedup": {
+    "": 1054.19,
+    "M ": 55554.46,
+    "R ": 86967.2,
+    "S ": 1219.03,
+    "T ": 26740.13
   },
-  "line_amount_by_category": {
-    "Accessories": 57704.02,
-    "Bikes": 79496.13,
-    "Clothing": 55900.0,
-    "Components": 64904.05
+  "standard_cost_by_country_dedup": {
+    "Australia": 45993.22,
+    "Canada": 155117.42,
+    "France": 107365.27,
+    "Germany": 66829.3,
+    "United Kingdom": 111150.74,
+    "United States": 764158.62
   },
-  "freight_by_category_dedup": {
-    "Accessories": 1420.5,
-    "Bikes": 2001.84,
-    "Clothing": 1489.67,
-    "Components": 1534.58
+  "standard_cost_IF_FANNED_OUT": 26693830.57,
+  "reseller_sales_by_country": {
+    "Australia": 1594335.38,
+    "Canada": 14377925.6,
+    "France": 4607537.93,
+    "Germany": 1983988.04,
+    "United Kingdom": 4279008.83,
+    "United States": 53607801.21
   },
-  "freight_by_category_dedup_total": 6446.59
+  "order_count": 3796,
+  "total_order_freight": 2011265.92,
+  "order_freight_by_product_line_dedup": {
+    "": 407585.64,
+    "M ": 832002.14,
+    "R ": 863879.1,
+    "S ": 1449640.5,
+    "T ": 315046.64
+  },
+  "order_freight_IF_FANNED_OUT": 63422668.3
 }

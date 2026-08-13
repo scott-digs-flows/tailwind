@@ -9,7 +9,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-LINES=content/tenants/internal/semantic/cubes/order_lines.cube.yml
+# Name the dialect the engine is ACTUALLY configured for, so the computed tier cannot
+# be attributed to a warehouse that was never tested.
+TAILWIND_DIALECT=$(docker compose --env-file infra/versions.env -f infra/docker-compose.yml \
+  exec -T cube sh -c 'echo -n "$CUBEJS_DB_TYPE"' 2>/dev/null || echo unknown)
+export TAILWIND_DIALECT
+echo "engine dialect: ${TAILWIND_DIALECT}"
+
+LINES=content/tenants/internal/semantic/cubes/fact_reseller_sales.cube.yml
 SNAP=$(mktemp)
 cp "$LINES" "$SNAP"
 restore() { cp "$SNAP" "$LINES"; rm -f "$SNAP"; ./scripts/publish.sh >/dev/null 2>&1 || true; }

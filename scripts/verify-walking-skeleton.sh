@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CUBE_FILE=content/tenants/internal/semantic/cubes/orders.cube.yml
-API=http://localhost:8080/api
+API=http://localhost:7080/api
 
 revenue() {
   curl -s -X POST "$API/v1/queries" -H 'Content-Type: application/json' \

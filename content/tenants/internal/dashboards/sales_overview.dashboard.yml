@@ -1,18 +1,18 @@
 spec_version: 1
 name: sales_overview
-title: Sales Overview
+title: AdventureWorks Sales
 freshness:
   class: standard
 meta:
   tailwind:
     spec_version: 1
     owner: data-team
-    description: The M0 walking-skeleton dashboard. Every number comes from the sales view.
+    description: Reseller and internet sales from the certified AdventureWorks surface.
     certification: certified
-    last_reviewed: '2026-08-12'
+    last_reviewed: '2026-08-13'
 charts:
-  - id: total_revenue
-    title: Total revenue
+  - id: reseller_total
+    title: Reseller sales
     type: kpi
     layout:
       x: 0
@@ -22,10 +22,9 @@ charts:
     query:
       view: sales
       metrics:
-        - sales.revenue
-
-  - id: order_count
-    title: Orders
+        - sales.reseller_sales
+  - id: internet_total
+    title: Internet sales
     type: kpi
     layout:
       x: 3
@@ -35,10 +34,9 @@ charts:
     query:
       view: sales
       metrics:
-        - sales.order_count
-
-  - id: revenue_trend
-    title: Revenue by month
+        - sales.internet_sales
+  - id: reseller_trend
+    title: Reseller sales by month
     type: line
     layout:
       x: 0
@@ -48,16 +46,15 @@ charts:
     query:
       view: sales
       metrics:
-        - sales.revenue
+        - sales.reseller_sales
       order:
-        - member: sales.order_date
+        - member: sales.reseller_order_date
           dir: asc
       time_dimensions:
-        - member: sales.order_date
+        - member: sales.reseller_order_date
           granularity: month
-
-  - id: revenue_by_category
-    title: Revenue by category
+  - id: by_product_line
+    title: Reseller sales by product line
     type: bar
     layout:
       x: 0
@@ -67,15 +64,14 @@ charts:
     query:
       view: sales
       metrics:
-        - sales.revenue
+        - sales.reseller_sales
       dimensions:
-        - sales.category
+        - sales.product_line
       order:
-        - member: sales.revenue
+        - member: sales.reseller_sales
           dir: desc
-
-  - id: region_table
-    title: Revenue and orders by region
+  - id: by_country
+    title: Sales by country
     type: table
     layout:
       x: 6
@@ -85,10 +81,10 @@ charts:
     query:
       view: sales
       metrics:
-        - sales.revenue
-        - sales.order_count
+        - sales.reseller_sales
+        - sales.internet_sales
       dimensions:
-        - sales.region
+        - sales.country
       order:
-        - member: sales.revenue
+        - member: sales.reseller_sales
           dir: desc

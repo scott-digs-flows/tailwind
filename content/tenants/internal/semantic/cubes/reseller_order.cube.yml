@@ -1,0 +1,68 @@
+cubes:
+  - name: reseller_order
+    # An ORDER HEADER derived from the line-grain fact. AdventureWorks ships no header
+    # table, but sales_order_number groups several sales_order_line_number rows -- so
+    # the header/detail topology is there, it just has to be expressed.
+    #
+    # This exists to make the fan-out mechanism REACHABLE. Without it every "fan-out"
+    # case resolved to multi-fact aggregation and the negative control could not fire
+    # (06-dialect-strategy.md section 12).
+    sql: "SELECT sales_order_number,
+
+      \       sum(freight) AS order_freight,
+
+      \       min(order_date) AS order_placed_at,
+
+      \       any(sales_territory_key) AS sales_territory_key
+
+      FROM datalake.`raw.fact_reseller_sales` GROUP BY sales_order_number\n"
+    public: false
+    joins:
+      - name: dim_sales_territory
+        relationship: many_to_one
+        sql: '{CUBE}.sales_territory_key = {dim_sales_territory}.sales_territory_key'
+    measures:
+      - name: order_freight
+        type: sum
+        sql: order_freight
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: >-
+              Freight charged ONCE per order. Summing it across order lines is the fan-out trap.
+            certification: certified
+      - name: order_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Number of reseller orders.
+            certification: certified
+    dimensions:
+      - name: sales_order_number
+        sql: sales_order_number
+        type: string
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Sales order number. The header key Cube deduplicates on.
+            certification: certified
+      - name: order_placed_at
+        sql: order_placed_at
+        type: time
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: When the order was placed.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: Reseller order headers, one row per sales order.
+        certification: certified
