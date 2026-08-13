@@ -6,8 +6,8 @@ const BASE: string = import.meta.env.VITE_API_BASE ?? '/api';
 /** ADR-006 D3. Every response carries this; the UI reads freshness and provenance from it. */
 export interface EnvelopeMeta {
   bundle_version: string;
-  as_of: string;
-  freshness: { class: string; stale: boolean };
+  as_of: string | null;
+  freshness: { class: string; stale: boolean | null; as_of_source: string; max_staleness_seconds: number };
   cache: string;
   trace_id: string;
   security_context_digest: string;

@@ -14,3 +14,5 @@ export type {
 export { format, isFormatted, NonCanonicalError } from './format.ts';
 export { keyOrder } from './schema-order.ts';
 export { lintBundle, formatFindings, type Finding } from './lint.ts';
+export { cachePolicyFor, freshnessReport, DEFAULT_FRESHNESS,
+  type CachePolicy, type FreshnessReport, type AsOfSource } from './freshness.ts';

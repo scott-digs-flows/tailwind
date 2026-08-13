@@ -3,9 +3,22 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit", "test": "node --test test/*.test.ts" },
-  "dependencies": { "@tailwind/spec": "workspace:*" },
-  "devDependencies": { "@types/node": "^24.0.0", "echarts": "^5.5.1", "typescript": "^5.9.3" },
-  "peerDependencies": { "echarts": "^5.5.1" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@tailwind/spec": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "echarts": "^6.1.0",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "echarts": "^6.1.0"
+  }
 }

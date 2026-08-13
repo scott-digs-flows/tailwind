@@ -67,6 +67,11 @@ services:
       CUBEJS_DB_PORT: "${CUBEJS_DB_PORT:-8123}"
       CUBEJS_DB_NAME: "${CUBEJS_DB_NAME:-datalake}"
       CUBEJS_DB_USER: "${CUBEJS_DB_USER:-default}"
+      # A local-container default, overridable from the environment. Real warehouse
+      # credentials belong in the secret store, not in a compose file -- that is T-077.
+      # Worth noting this was absent and the stack worked anyway: the warehouse was
+      # accepting anonymous connections, so the gap only surfaced when it stopped.
+      CUBEJS_DB_PASS: "${CUBEJS_DB_PASS:-clickhouse}"
       # The catalog is read-only (engines.yaml: "Reads Iceberg via DataLakeCatalog.
       # Read-only."), so tell the driver rather than letting it discover that at runtime.
       CUBEJS_DB_CLICKHOUSE_READONLY: "true"

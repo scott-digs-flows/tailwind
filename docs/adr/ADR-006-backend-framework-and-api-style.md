@@ -285,3 +285,38 @@ the Cube YAML profile and the CLI, not the API.
 
 **Revisit when:** data-team contributors are measurably blocked by the language, or the headless
 render gate (ADR-005) is dropped. Either reopens this.
+
+---
+
+## D3 amendment: `as_of` may be null, and says why (T-109, 2026-08-13)
+
+D3 types `as_of` as a `string`. In practice the engine frequently does not report a refresh time,
+and the implementation filled the gap with `new Date()` — which asserts that the numbers are as
+fresh as the page load. That is the most confidently wrong thing a BI tool can say, and it was
+being said on every response.
+
+**Amended envelope:**
+
+```jsonc
+"as_of": "2026-08-13T09:31:00Z" | null,   // the DATA's as-of, never the request time
+"freshness": {
+  "class": "standard",
+  "stale": false,                          // null when unknowable
+  "as_of_source": "engine" | "unknown",
+  "max_staleness_seconds": 1800            // what the class PROMISES
+}
+```
+
+Three properties worth keeping: `null` is a first-class answer rather than a fallback; `stale` is
+`null` when as-of is unknown, because **absence of information is not evidence of freshness**; and
+`max_staleness_seconds` makes the class's promise inspectable, so FR-FRESH-06's declared-versus-
+achieved monitoring has something to compare against.
+
+Derivation lives in one place — `packages/spec/freshness.ts` — so ADR-008's cache reads a policy
+rather than re-deciding what `standard` means. The UI renders "as-of unknown" instead of a
+fabricated timestamp.
+
+**This is honest, not fixed.** Every response currently reports `as_of_source: "unknown"`, because
+the real signal is upstream refresh completion — dbt run completion, per FR-FRESH-05 — which
+arrives with T-111. The value of the amendment is that the gap is now visible instead of papered
+over.

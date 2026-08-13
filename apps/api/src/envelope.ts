@@ -1,5 +1,6 @@
 import type { SecurityContext } from '@tailwind/semantic';
 import { securityContextDigest } from '@tailwind/semantic';
+import { freshnessReport } from '@tailwind/spec';
 
 /** FR-FRESH-01. Declared per artifact; only `standard` needs to work in the POC. */
 export type FreshnessClass = 'batch' | 'standard' | 'operational';
@@ -15,8 +16,19 @@ export type CacheOutcome = 'hit' | 'miss' | 'bypass';
  */
 export interface EnvelopeMeta {
   bundle_version: string;
-  as_of: string;
-  freshness: { class: FreshnessClass; stale: boolean };
+  /**
+   * The DATA's as-of, or null when genuinely unknown. Never the request time:
+   * claiming the numbers are as fresh as the page load is the most confidently wrong
+   * thing a BI tool can say (FR-FRESH-03).
+   */
+  as_of: string | null;
+  freshness: {
+    class: FreshnessClass;
+    /** null when unknowable -- absence of information is not evidence of freshness. */
+    stale: boolean | null;
+    as_of_source: 'engine' | 'unknown';
+    max_staleness_seconds: number;
+  };
   cache: CacheOutcome;
   trace_id: string;
   security_context_digest: string;
@@ -45,11 +57,18 @@ export function envelope<T>(
     asOf?: string;
   },
 ): Envelope<T> {
+  // One derivation, shared by every endpoint (FR-FRESH-02/03).
+  const f = freshnessReport(opts.freshnessClass, opts.asOf);
   return {
     meta: {
       bundle_version: BUNDLE_VERSION,
-      as_of: opts.asOf ?? new Date().toISOString(),
-      freshness: { class: opts.freshnessClass ?? 'standard', stale: opts.stale ?? false },
+      as_of: f.asOf,
+      freshness: {
+        class: f.class,
+        stale: opts.stale ?? f.stale,
+        as_of_source: f.asOfSource,
+        max_staleness_seconds: f.maxStalenessSeconds,
+      },
       cache: opts.cache ?? 'bypass',
       trace_id: opts.traceId,
       security_context_digest: securityContextDigest(ctx),

@@ -14,7 +14,7 @@
     "react-dom": "^19.0.0",
     "@tailwind/charts": "workspace:*",
     "@tailwind/spec": "workspace:*",
-    "echarts": "^5.5.1"
+    "echarts": "^6.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",

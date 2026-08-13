@@ -1,17 +1,17 @@
 {
-  "total_reseller_sales": 80450596.98,
-  "total_internet_sales": 29358677.22,
-  "reseller_line_count": 60855,
-  "internet_line_count": 60398,
+  "total_reseller_sales": 8712739.94,
+  "total_internet_sales": 7072084.24,
+  "reseller_line_count": 4471,
+  "internet_line_count": 2206,
   "product_count": 606,
   "territory_count": 11,
   "total_product_standard_cost": 171535.0,
+  "order_count": 400,
+  "total_order_freight": 217818.54,
   "reseller_sales_by_product_line": {
-    "": 540248.8,
-    "M ": 32205548.04,
-    "R ": 33637946.58,
-    "S ": 1935348.29,
-    "T ": 12131505.28
+    "M ": 5238313.02,
+    "R ": 3421855.66,
+    "S ": 52571.26
   },
   "standard_cost_by_product_line_dedup": {
     "": 1054.19,
@@ -20,31 +20,15 @@
     "S ": 1219.03,
     "T ": 26740.13
   },
-  "standard_cost_by_country_dedup": {
-    "Australia": 45993.22,
-    "Canada": 155117.42,
-    "France": 107365.27,
-    "Germany": 66829.3,
-    "United Kingdom": 111150.74,
-    "United States": 764158.62
-  },
-  "standard_cost_IF_FANNED_OUT": 26693830.57,
   "reseller_sales_by_country": {
-    "Australia": 1594335.38,
-    "Canada": 14377925.6,
-    "France": 4607537.93,
-    "Germany": 1983988.04,
-    "United Kingdom": 4279008.83,
-    "United States": 53607801.21
+    "Canada": 1677139.29,
+    "United States": 7035600.65
   },
-  "order_count": 3796,
-  "total_order_freight": 2011265.92,
   "order_freight_by_product_line_dedup": {
-    "": 407585.64,
-    "M ": 832002.14,
-    "R ": 863879.1,
-    "S ": 1449640.5,
-    "T ": 315046.64
+    "M ": 131487.84,
+    "R ": 86323.7,
+    "S ": 147715.49
   },
-  "order_freight_IF_FANNED_OUT": 63422668.3
+  "order_freight_IF_FANNED_OUT": 3675676.43,
+  "standard_cost_IF_FANNED_OUT": 3177367.89
 }

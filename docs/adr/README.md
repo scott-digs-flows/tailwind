@@ -26,7 +26,7 @@ here.
 | ADR | Decision | Milestone | Status |
 |---|---|---|---|
 | ADR-001 | [Deployment — one VM, one Compose file, one environment](ADR-001-deployment-target-and-topology.md) | M0 | **Accepted** 2026-08-10 |
-| ADR-002 | Warehouse of record; dialect support tiers | M0 | Q-01 answered: **ClickHouse**, certified by conformance (T-135/T-136). ADR to be written up. |
+| ADR-002 | [Warehouse of record — ClickHouse, single dialect, tier computed](ADR-002-warehouse-of-record-and-dialect-tiers.md) | M0 | **Accepted** 2026-08-13 |
 | ADR-003 | [Semantic engine selection — Cube Core behind a Tailwind façade](ADR-003-semantic-engine-selection.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-004 | [Spec format, repository layout, canonical serializer](ADR-004-spec-format-and-repository-layout.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-005 | [Front-end stack and chart library](ADR-005-frontend-stack-and-chart-library.md) | M0 | **Accepted** 2026-08-10 |
@@ -57,10 +57,13 @@ later reader can see what is load-bearing:
   ADR-008's cache both depend on, and the tenant path that ADR-004's layout provides.
 - **ADR-001** only has to host the result, and is deliberately the least interesting of the five.
 
-`ADR-002` (warehouse of record) is the only M0 ADR still open, and it waits on **Q-01** from Product,
-not on the architecture. Nothing above depends on it: the skeleton builds and tests against DuckDB as
-the `development`-tier dialect. `ADR-008` should still wait for real volumetrics from M1
-observability rather than being written against planning assumptions.
+**The M0 set is now complete.** `ADR-002` landed 2026-08-13 once Q-01 was answered: ClickHouse, a
+single dialect, `certified` by a conformance result rather than by declaration. The DuckDB
+`development` tier it originally assumed was retired the same week — ClickHouse runs as a container,
+so CI needs no cloud credentials and a second dialect bought nothing.
+
+`ADR-008` should still wait for real volumetrics from M1 observability rather than being written
+against planning assumptions.
 
 `ADR-002` (warehouse of record) *reads* as though it were circular with `ADR-003` — each doc names
 the other as an input. It is not, now that ADR-003 has landed: the selected engine certifies every

@@ -119,7 +119,12 @@ export function ChartCard({ chart, freshness }: { chart: DashboardChart; freshne
 
       {meta !== null && (
         <footer style={{ fontSize: '.62rem', opacity: 0.5, marginTop: '.4rem' }}>
-          {meta.freshness.class} · cache {meta.cache} · as of {new Date(meta.as_of).toLocaleString()}
+          {meta.freshness.class} · cache {meta.cache} ·{' '}
+          {/* FR-FRESH-03: say "unknown" rather than rendering the request time as
+              though it were the data's as-of. */}
+          {meta.as_of === null
+            ? 'as-of unknown'
+            : `as of ${new Date(meta.as_of).toLocaleString()}${meta.freshness.stale === true ? ' (stale)' : ''}`}
         </footer>
       )}
     </section>

@@ -7,7 +7,7 @@
 # restart is the publish.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-COMPOSE=(docker compose --env-file infra/versions.env -f infra/docker-compose.yml)
+COMPOSE=(docker compose --env-file infra/versions.env -f "${TAILWIND_COMPOSE:-infra/docker-compose.yml}")
 
 echo "validating specs (the same gate CI runs)…"
 node packages/cli/src/main.ts validate content >/dev/null

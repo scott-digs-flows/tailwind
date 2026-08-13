@@ -11,8 +11,11 @@ cd "$(dirname "$0")/.."
 
 # Name the dialect the engine is ACTUALLY configured for, so the computed tier cannot
 # be attributed to a warehouse that was never tested.
-TAILWIND_DIALECT=$(docker compose --env-file infra/versions.env -f infra/docker-compose.yml \
-  exec -T cube sh -c 'echo -n "$CUBEJS_DB_TYPE"' 2>/dev/null || echo unknown)
+# Conformance runs against the FIXTURE stack (infra/docker-compose.ci.yml), never the
+# dev warehouse: a suite whose expected values move with the data is not a suite.
+COMPOSE_CI=(docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml)
+export TAILWIND_COMPOSE=infra/docker-compose.ci.yml
+TAILWIND_DIALECT=$("${COMPOSE_CI[@]}" exec -T cube sh -c 'echo -n "$CUBEJS_DB_TYPE"' 2>/dev/null || echo unknown)
 export TAILWIND_DIALECT
 echo "engine dialect: ${TAILWIND_DIALECT}"
 
