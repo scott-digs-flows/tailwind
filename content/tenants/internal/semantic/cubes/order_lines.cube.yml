@@ -1,0 +1,56 @@
+cubes:
+  - name: order_lines
+    sql: SELECT * FROM read_csv_auto('/cube/conf/seed/order_lines.csv', header = true)
+    public: false
+    joins:
+      # THE FAN-OUT, declared from the MANY side because Cube's join graph is directed
+      # and the view enters here. `many lines per one order` is the same cardinality as
+      # `one order has many lines` -- and it is the fact that lets Cube detect that
+      # summing a HEADER measure (freight) across lines would multiply it.
+      - name: orders_hdr
+        relationship: many_to_one
+        sql: '{CUBE}.order_id = {orders_hdr}.order_id'
+    measures:
+      - name: revenue
+        type: sum
+        sql: amount
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Gross line amount before returns and discounts.
+            certification: certified
+      - name: line_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Number of order lines.
+            certification: certified
+    dimensions:
+      - name: line_id
+        sql: line_id
+        type: number
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Line identifier.
+            certification: certified
+      - name: category
+        sql: category
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product category.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: Order detail. One row per line.
+        certification: certified

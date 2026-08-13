@@ -1,0 +1,34 @@
+{
+  "total_line_amount": 258004.2,
+  "total_freight": 3304.32,
+  "order_count": 94,
+  "line_count": 243,
+  "customer_count": 40,
+  "total_ticket_hours": 242.14,
+  "distinct_customers_with_orders": 40,
+  "freight_by_region": {
+    "East": 899.11,
+    "North": 711.79,
+    "South": 826.79,
+    "West": 866.63
+  },
+  "freight_by_region_IF_FANNED_OUT": {
+    "East": 2357.93,
+    "North": 1807.28,
+    "South": 2210.19,
+    "West": 2127.74
+  },
+  "line_amount_by_category": {
+    "Accessories": 57704.02,
+    "Bikes": 79496.13,
+    "Clothing": 55900.0,
+    "Components": 64904.05
+  },
+  "freight_by_category_dedup": {
+    "Accessories": 1420.5,
+    "Bikes": 2001.84,
+    "Clothing": 1489.67,
+    "Components": 1534.58
+  },
+  "freight_by_category_dedup_total": 6446.59
+}

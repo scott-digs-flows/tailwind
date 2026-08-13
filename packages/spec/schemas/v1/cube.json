@@ -201,6 +201,12 @@
           "const": false,
           "description": "FR-SEM-02 / T-102: cubes are private. Dashboards reference views only."
         },
+        "joins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/join"
+          }
+        },
         "measures": {
           "type": "array",
           "items": {
@@ -215,6 +221,31 @@
         },
         "meta": {
           "$ref": "#/$defs/meta"
+        }
+      }
+    },
+    "join": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "relationship",
+        "sql"
+      ],
+      "description": "Cardinality is DECLARED here and it is load-bearing: Cube detects fan-out and chasm traps from these relationships. Declare the direction wrong and the detector silently does not fire (ADR-003, open issue #7738).",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "relationship": {
+          "enum": [
+            "one_to_one",
+            "one_to_many",
+            "many_to_one"
+          ]
+        },
+        "sql": {
+          "$ref": "#/$defs/noTemplating"
         }
       }
     }

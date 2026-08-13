@@ -113,3 +113,28 @@ jobs:
             "cd /srv/tailwind && git pull --ff-only && \
              docker compose --env-file infra/versions.env -f infra/docker-compose.yml pull && \
              docker compose --env-file infra/versions.env -f infra/docker-compose.yml up -d"
+
+  # FR-SEM-13 / 06-dialect-strategy.md section 11: a dialect's support TIER is a
+  # conformance result computed from this suite on a pinned engine version -- not a
+  # claim we write into a table. The negative control runs too, because a suite that
+  # still passes with the mechanism disabled is testing nothing.
+  conformance:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat infra/versions.env | grep -v '^#' | sed 's/ *#.*//' >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v4
+        with: { run_install: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start the engine
+        run: docker compose --env-file infra/versions.env -f infra/docker-compose.yml up -d cube
+      - name: Wait for Cube
+        run: for i in $(seq 1 60); do curl -sf http://localhost:4000/readyz && break; sleep 2; done
+      - name: Conformance suite and negative control
+        run: ./scripts/conformance.sh

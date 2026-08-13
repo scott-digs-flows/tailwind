@@ -1,0 +1,48 @@
+cubes:
+  - name: customers
+    sql: SELECT * FROM read_csv_auto('/cube/conf/seed/customers.csv', header = true)
+    public: false
+    measures:
+      - name: customer_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Number of customers.
+            certification: certified
+    dimensions:
+      - name: customer_id
+        sql: customer_id
+        type: number
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Customer identifier.
+            certification: certified
+      - name: region
+        sql: region
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Sales region.
+            certification: certified
+      - name: segment
+        sql: segment
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Customer segment.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: One row per customer.
+        certification: certified

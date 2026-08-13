@@ -3,12 +3,29 @@ views:
     title: Sales
     description: The certified surface dashboards may reference.
     cubes:
-      - join_path: orders
-        includes: '*'
-    # ADR-003 D4. Default-deny is OURS to enforce, and Cube is stricter than expected:
-    # matching a policy does NOT grant member visibility, so member_level must be
-    # explicit too. There is no catch-all entry on purpose -- a context whose groups
-    # match nothing sees nothing.
+      # Join paths are declared from the fact outward, so the view spans the whole
+      # topology: lines -> order header -> customer, and tickets -> customer.
+      - join_path: order_lines
+        includes:
+          - revenue
+          - line_count
+          - category
+      - join_path: order_lines.orders_hdr
+        includes:
+          - freight
+          - order_count
+          - order_date
+      # Root-level, NOT nested behind order_lines: a multi-fact query (freight and
+      # ticket_hours together) needs every fact to reach the shared dimension directly.
+      # Nested here, Cube cannot find one join tree spanning both facts.
+      - join_path: customers
+        includes:
+          - customer_count
+          - region
+          - segment
+      - join_path: tickets
+        includes:
+          - ticket_hours
     access_policy:
       - group: analyst
         row_level:
