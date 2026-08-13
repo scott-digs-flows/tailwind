@@ -3,6 +3,8 @@ import { runQuery, pocSystemContext, type CubeClientOptions } from '@tailwind/se
 import type { ChartQuery } from '@tailwind/spec';
 import { envelope } from './envelope.ts';
 import { loadDashboard } from './content.ts';
+import { health } from './db.ts';
+import { recordQuery } from './audit.ts';
 
 const cube: CubeClientOptions = {
   url: process.env['CUBE_URL'] ?? 'http://localhost:4000/cubejs-api/v1',
@@ -10,9 +12,18 @@ const cube: CubeClientOptions = {
 };
 
 export function registerRoutes(app: FastifyInstance): void {
-  app.get('/healthz', async (req) =>
-    envelope({ status: 'ok', service: 'api' }, pocSystemContext(), { traceId: req.id, cache: 'bypass' }),
-  );
+  app.get('/healthz', async (req, reply) => {
+    const deps = await health();
+    const ok = deps.postgres === 'up' && deps.redis === 'up';
+    // Report degraded rather than lying: a health check that returns 200 while its
+    // datastore is down is how a broken deploy looks healthy (the same shape as the
+    // Cube Store trap in T-118).
+    if (!ok) reply.code(503);
+    return envelope({ status: ok ? 'ok' : 'degraded', service: 'api', deps }, pocSystemContext(), {
+      traceId: req.id,
+      cache: 'bypass',
+    });
+  });
 
   app.get<{ Params: { name: string } }>('/v1/dashboards/:name', async (req, reply) => {
     // SSO is M1 (T-072). Until then the context resolves permissively -- but it is
@@ -43,8 +54,21 @@ export function registerRoutes(app: FastifyInstance): void {
     '/v1/queries',
     async (req, reply) => {
       const ctx = pocSystemContext();
+      const started = Date.now();
       try {
         const result = await runQuery(cube, req.body.query, ctx);
+        recordQuery(
+          {
+            ctx,
+            view: req.body.query.view,
+            metrics: req.body.query.metrics,
+            sql: result.sql,
+            rowCount: result.rows.length,
+            durationMs: Date.now() - started,
+            traceId: req.id,
+          },
+          (e) => app.log.warn({ err: e }, 'audit write failed'),
+        );
         return envelope({ rows: result.rows, sql: result.sql }, ctx, {
           traceId: req.id,
           // Our cache is T-025/M1. Saying "bypass" is honest; claiming a miss would not be.

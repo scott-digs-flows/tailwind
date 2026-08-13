@@ -255,3 +255,37 @@ added to T-009's tail as part of the schema bootstrap.
 - Cube multi-tenancy hooks and the cache-key leak warning — <https://docs.cube.dev/embedding/multitenancy>,
   <https://cube.dev/docs/product/configuration/multitenancy>
 - Postgres row-level security — <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>
+
+---
+
+## The RLS backstop is decorative unless the app is a non-superuser (2026-08-12, found in T-024)
+
+D-whatever-number this ADR gives it: **the application must never connect to Postgres as the
+database owner.**
+
+The first implementation created `query_log` with `ENABLE ROW LEVEL SECURITY` *and*
+`FORCE ROW LEVEL SECURITY`, wrote a tenant-isolation policy, and set the tenant per transaction with
+`set_config(..., true)`. Every part of that was correct, and it isolated nothing: a session with
+`tailwind.tenant_id = 'other-co'` still saw every `internal` row.
+
+The cause is that `POSTGRES_USER` is a **superuser**, and superusers bypass row-level security
+entirely. `FORCE ROW LEVEL SECURITY` closes the *owner* loophole, not the *superuser* one. The
+policy was live, the grants were right, and the guard was inert.
+
+**What we do now.** Migration `002_app_role.sql` creates `tailwind_app` — `LOGIN`, explicitly
+`NOBYPASSRLS` — granted `SELECT, INSERT` on `query_log` and nothing else. Two connection strings:
+`DATABASE_ADMIN_URL` for DDL at boot, `DATABASE_URL` for everything the app does afterwards.
+
+Two properties fall out, both verified rather than assumed:
+
+- A wrong-tenant or unset-tenant session reads **zero** rows.
+- `DELETE FROM query_log` as the app role is **permission denied**, so FR-SEC-07's "immutable audit
+  log" is enforced by a withheld grant rather than by a promise.
+
+**Why this is worth a section rather than a commit message.** It is the exact failure shape this
+project keeps meeting: a security control that is present, reviewable, and does nothing. It was
+found only by *asserting the negative* — querying as the wrong tenant and checking for zero — which
+is the same discipline as T-097's negative control and the planted error in the wizard-of-oz
+protocol. **T-130's schema guard must therefore check the connecting role's privileges, not only the
+table's policies.** A guard that inspects `pg_policies` and stops there would have passed this
+schema.

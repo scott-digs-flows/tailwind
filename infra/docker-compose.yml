@@ -14,7 +14,10 @@ services:
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       TAILWIND_BUNDLE_VERSION: "${TAILWIND_BUNDLE_VERSION:-dev}"
       CUBE_URL: "http://cube:4000/cubejs-api/v1"
-      DATABASE_URL: "postgres://tailwind:tailwind@postgres:5432/tailwind"
+      # The app connects as a NON-superuser so RLS actually applies (ADR-014).
+      DATABASE_URL: "postgres://tailwind_app:tailwind_app@postgres:5432/tailwind"
+      DATABASE_ADMIN_URL: "postgres://tailwind:tailwind@postgres:5432/tailwind"
+      APP_DB_PASSWORD: "tailwind_app"
       REDIS_URL: "redis://redis:6379"
       TAILWIND_CONTENT_ROOT: "/srv/content"
     volumes:
