@@ -21,13 +21,16 @@ views:
           - internet_sales
           - internet_line_count
           - internet_order_date
-      # Root-level: a multi-fact query needs every fact to reach the shared dimension
-      # directly, not nested behind one of them.
+      # Nested behind the fact: dim_reseller is only ever reached via reseller sales,
+      # so it needs no independent path.
       - join_path: fact_reseller_sales.dim_reseller
         includes:
           - reseller_count
           - reseller_name
           - business_type
+      # Root-level, NOT nested behind a fact: a multi-fact query (reseller and internet
+      # sales together) needs EVERY fact to reach the shared dimension directly, or
+      # Cube cannot find one join tree spanning both.
       - join_path: dim_product
         includes:
           - product_count
@@ -35,6 +38,7 @@ views:
           - product_name
           - color
           - product_line
+          - model_name
       - join_path: dim_sales_territory
         includes:
           - territory_count

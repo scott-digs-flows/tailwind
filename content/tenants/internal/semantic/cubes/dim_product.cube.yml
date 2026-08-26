@@ -50,6 +50,15 @@ cubes:
             owner: data-team
             description: Product colour.
             certification: certified
+      - name: model_name
+        sql: model_name
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product model name, e.g. Road-650. Groups colour and size variants.
+            certification: certified
       - name: product_line
         sql: product_line
         type: string
