@@ -1,19 +1,20 @@
 """Extract a referentially consistent conformance fixture (see refresh-fixture.sh)."""
-import subprocess, pathlib
+import os, subprocess, pathlib
 
 BT = chr(96)
-SRC = 'clickhouse'          # the data-warehouse-local container
+SRC = 'dwl-clickhouse'          # the data-warehouse-local container
 OUT = pathlib.Path('infra/fixture')
 ORDERS = 400
 
 def ch(q):
-    r = subprocess.run(['docker', 'exec', SRC, 'clickhouse-client', '--query', q],
+    r = subprocess.run(['docker', 'exec', SRC, 'clickhouse-client', '--password',
+                        os.environ.get('CLICKHOUSE_PASSWORD', 'clickhouse'), '--query', q],
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f'ClickHouse error: {r.stderr[:300]}')
     return r.stdout
 
-def tbl(n): return f'datalake.{BT}raw.{n}{BT}'
+def tbl(n): return f'raw.{n}'
 
 # Whole ORDERS, then every line belonging to them, then only the products and
 # territories those lines reference. Sampling lines independently would destroy the

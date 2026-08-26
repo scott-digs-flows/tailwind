@@ -1,6 +1,6 @@
 cubes:
   - name: fact_internet_sales
-    sql_table: datalake.`raw.fact_internet_sales`
+    sql_table: raw.fact_internet_sales
     public: false
     joins:
       # Declared from the MANY side, which is the direction the view traverses and the

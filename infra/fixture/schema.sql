@@ -1,9 +1,9 @@
 -- Generated from the live AdventureWorks schemas: see scripts/refresh-fixture.sh.
--- Table names carry the flattened Iceberg namespace ('raw.x') so the SAME reviewed
--- model runs here and against the real catalog, byte for byte (ADR-003 D2).
-CREATE DATABASE IF NOT EXISTS datalake;
+-- Same database and table names as the source warehouse, so the SAME reviewed model
+-- runs here and against the real thing, byte for byte (ADR-003 D2).
+CREATE DATABASE IF NOT EXISTS raw;
 
-CREATE TABLE IF NOT EXISTS datalake.`raw.fact_reseller_sales` (
+CREATE TABLE IF NOT EXISTS raw.fact_reseller_sales (
   `product_key` Nullable(Int32),
   `order_date_key` Nullable(Int32),
   `due_date_key` Nullable(Int32),
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS datalake.`raw.fact_reseller_sales` (
 ) ENGINE = MergeTree ORDER BY `sales_order_number`
 SETTINGS allow_nullable_key = 1;
 
-CREATE TABLE IF NOT EXISTS datalake.`raw.fact_internet_sales` (
+CREATE TABLE IF NOT EXISTS raw.fact_internet_sales (
   `product_key` Nullable(Int32),
   `order_date_key` Nullable(Int32),
   `due_date_key` Nullable(Int32),
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS datalake.`raw.fact_internet_sales` (
 ) ENGINE = MergeTree ORDER BY `sales_order_number`
 SETTINGS allow_nullable_key = 1;
 
-CREATE TABLE IF NOT EXISTS datalake.`raw.dim_product` (
+CREATE TABLE IF NOT EXISTS raw.dim_product (
   `product_key` Nullable(Int32),
   `product_alternate_key` Nullable(String),
   `product_subcategory_key` Nullable(Int32),
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS datalake.`raw.dim_product` (
 ) ENGINE = MergeTree ORDER BY `product_key`
 SETTINGS allow_nullable_key = 1;
 
-CREATE TABLE IF NOT EXISTS datalake.`raw.dim_sales_territory` (
+CREATE TABLE IF NOT EXISTS raw.dim_sales_territory (
   `sales_territory_key` Nullable(Int32),
   `sales_territory_alternate_key` Nullable(Int32),
   `sales_territory_region` Nullable(String),

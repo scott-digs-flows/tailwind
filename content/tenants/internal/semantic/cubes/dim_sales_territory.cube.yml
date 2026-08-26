@@ -1,6 +1,6 @@
 cubes:
   - name: dim_sales_territory
-    sql_table: datalake.`raw.dim_sales_territory`
+    sql_table: raw.dim_sales_territory
     public: false
     measures:
       - name: territory_count

@@ -5,8 +5,8 @@
 # suite whose expected values move is not a suite. The dev stack joins warehouse-net
 # and reads the full AdventureWorks catalog; this one owns its data.
 #
-# The reviewed model is identical in both -- table names carry the flattened Iceberg
-# namespace here too, so `sql_table:` needs no per-environment variant (ADR-003 D2).
+# The reviewed model is identical in both -- same database and table names here as in
+# the warehouse, so `sql_table:` needs no per-environment variant (ADR-003 D2).
 name: tailwind-conformance
 
 services:
@@ -19,30 +19,26 @@ services:
       - ../infra/fixture/load.sh:/docker-entrypoint-initdb.d/02-load.sh:ro
       - ../infra/fixture:/fixture:ro
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--query", "SELECT count() FROM datalake.`raw.dim_product`"]
+      test: ["CMD", "clickhouse-client", "--query", "SELECT count() FROM raw.dim_product"]
       interval: 3s
       timeout: 5s
       retries: 40
 
   cube:
     image: "cubejs/cube:${CUBE_VERSION}"
+    # T-132 hardening lives in ONE place so the two stacks cannot drift.
+    env_file: [./cube-hardening.env]
     environment:
-      # Same hardening baseline as the dev stack (T-132). Drifting these would mean
-      # conformance certifies an engine configuration we do not actually run.
-      CUBEJS_DEV_MODE: "false"
-      CUBEJS_CACHE_AND_QUEUE_DRIVER: "memory"
-      CUBEJS_DEFAULT_API_SCOPES: "meta,data,sql"
-      CUBEJS_TESSERACT_SQL_PLANNER: "true"
       CUBEJS_DB_TYPE: "clickhouse"
       CUBEJS_DB_HOST: "clickhouse"
       CUBEJS_DB_PORT: "8123"
-      CUBEJS_DB_NAME: "datalake"
+      CUBEJS_DB_NAME: "raw"
       CUBEJS_DB_USER: "default"
       CUBEJS_API_SECRET: "dev-only-not-a-secret"
       CUBEJS_LOG_LEVEL: "warn"
     volumes:
       - ../infra/cube/cube.js:/cube/conf/cube.js:ro
       - ../content/tenants/internal/semantic:/cube/conf/model:ro
-    ports: ["${CUBE_PORT}:4000"]
+    ports: ["${CUBE_CI_PORT}:4000"]
     depends_on:
       clickhouse: { condition: service_healthy }

@@ -437,3 +437,33 @@ testing was aimed at: a mechanism that silently is not working.
 
 **Consequence:** CI must run ClickHouse. Tracked as **T-137**, rescoped from "restore DuckDB" to
 "run ClickHouse in CI". Until it lands, the conformance suite runs locally only.
+
+
+### §12.3 — The warehouse stack was restructured; our side simplified (2026-08-24)
+
+`data-warehouse-local` was reorganised into per-stack directories, and its ClickHouse became
+**self-contained**: MergeTree tables loaded from a shared raw layer, no MinIO, no Lakekeeper, no
+Iceberg catalog. Three things moved, and all three broke us:
+
+| | before | after |
+|---|---|---|
+| Docker network | `warehouse-net` | `dwl-clickhouse_default` |
+| Container | `clickhouse` | `dwl-clickhouse` (keeps a `clickhouse` alias) |
+| Tables | `datalake."raw.dim_product"` | `raw.dim_product` |
+
+**The third one is a simplification worth noticing.** ADR-002 and §8 both treat the flattened
+namespace — the Iceberg namespace folded *into* the quoted table name — as ClickHouse's defining
+idiosyncrasy, quoting `engines.yaml` calling it *"the most idiosyncratic SQL dialect here."*
+
+That quirk was an artifact of **the Iceberg catalog**, not of ClickHouse. Reading MergeTree tables
+directly, `raw` is an ordinary database and `sql_table: raw.dim_product` is an ordinary reference.
+The objection recorded against ClickHouse in Q-01 is now weaker than when it was raised, and the
+`sql_table` handling that ADR-002 credits for absorbing the quirk was never really tested by it.
+
+Nothing about the conformance result changes: 23/23, negative control fires, tier stays `certified`.
+The fixture, the model and the oracle all moved to the new names together, so the reviewed model is
+still byte-identical between the fixture stack and the warehouse.
+
+**Also fixed:** the conformance stack published Cube on the same port as the dev stack, so the two
+could not run at once — meaning you could not check a model change against the fixture without
+tearing down the dashboard. It now has its own port.

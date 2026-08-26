@@ -43,29 +43,22 @@ services:
   # Cube Core, self-hosted, Apache-2.0 only. NO Cloud features (ADR-003 D1a).
   cube:
     image: "cubejs/cube:${CUBE_VERSION}"
+    # T-132 hardening lives in ONE place so the two stacks cannot drift.
+    env_file: [./cube-hardening.env]
     # Q-01: ClickHouse is the warehouse of record, and it lives in the
     # data-warehouse-local stack. We join its network rather than running a second
     # ClickHouse -- one warehouse, one copy of the data, no sync to drift.
-    networks: [default, warehouse-net]
+    # The network is named by that stack's compose project (`name: dwl-clickhouse`),
+    # and the container publishes a `clickhouse` alias on it.
+    networks: [default, dwl-clickhouse_default]
     environment:
-      # --- T-132 hardening baseline, verbatim from ADR-003. Do not edit casually. ---
-      CUBEJS_DEV_MODE: "false"
-      # The one that must never be dropped: without it the container boots, /readyz
-      # passes, and /v1/load throws at QUERY time. A healthy-looking broken deploy.
-      CUBEJS_CACHE_AND_QUEUE_DRIVER: "memory"
-      CUBEJS_DEFAULT_API_SCOPES: "meta,data,sql"
-      CUBEJS_TESSERACT_SQL_PLANNER: "true"
-      # Deliberately UNSET: CUBEJS_PG_SQL_PORT (Postgres-wire API off),
-      # CUBEJS_CUBESTORE_HOST + CUBEJS_REFRESH_WORKER (not needed with pre-aggs off,
-      # see T-118), and every CUBEJS_REDIS_* (removed in v0.32.0 -- now a hard error).
-      # --- end T-132 ---
       # ClickHouse is the warehouse of record and the ONLY dialect (Q-01). It runs as a
       # container, so there is no cloud credential in the build path and no second
       # dialect to keep in parity.
       CUBEJS_DB_TYPE: "${CUBEJS_DB_TYPE:-clickhouse}"
       CUBEJS_DB_HOST: "${CUBEJS_DB_HOST:-clickhouse}"
       CUBEJS_DB_PORT: "${CUBEJS_DB_PORT:-8123}"
-      CUBEJS_DB_NAME: "${CUBEJS_DB_NAME:-datalake}"
+      CUBEJS_DB_NAME: "${CUBEJS_DB_NAME:-raw}"
       CUBEJS_DB_USER: "${CUBEJS_DB_USER:-default}"
       # A local-container default, overridable from the environment. Real warehouse
       # credentials belong in the secret store, not in a compose file -- that is T-077.
@@ -114,9 +107,9 @@ services:
 
 networks:
   default:
-  # Owned by data-warehouse-local. `docker compose --profile engines up -d` there
-  # creates it; we only attach.
-  warehouse-net:
+  # Owned by data-warehouse-local's ClickHouse stack. `docker compose up -d` in
+  # stacks/clickhouse there creates it; we only attach.
+  dwl-clickhouse_default:
     external: true
 
 volumes:

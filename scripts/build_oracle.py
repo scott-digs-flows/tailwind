@@ -3,7 +3,7 @@ import json, subprocess, pathlib
 
 BT = chr(96)
 CONTAINER = 'tailwind-conformance-clickhouse-1'
-def tbl(n): return f'datalake.{BT}raw.{n}{BT}'
+def tbl(n): return f'raw.{n}'
 R, I, P, T = (tbl('fact_reseller_sales'), tbl('fact_internet_sales'),
               tbl('dim_product'), tbl('dim_sales_territory'))
 HDR = f'(SELECT sales_order_number, sum(freight) AS order_freight FROM {R} GROUP BY sales_order_number)'

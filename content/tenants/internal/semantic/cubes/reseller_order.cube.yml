@@ -15,7 +15,7 @@ cubes:
 
       \       any(sales_territory_key) AS sales_territory_key
 
-      FROM datalake.`raw.fact_reseller_sales` GROUP BY sales_order_number\n"
+      FROM raw.fact_reseller_sales GROUP BY sales_order_number\n"
     public: false
     joins:
       - name: dim_sales_territory

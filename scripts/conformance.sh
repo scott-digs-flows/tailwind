@@ -15,6 +15,7 @@ cd "$(dirname "$0")/.."
 # dev warehouse: a suite whose expected values move with the data is not a suite.
 COMPOSE_CI=(docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml)
 export TAILWIND_COMPOSE=infra/docker-compose.ci.yml
+export CUBE_URL=${CUBE_URL:-http://localhost:7401/cubejs-api/v1}
 TAILWIND_DIALECT=$("${COMPOSE_CI[@]}" exec -T cube sh -c 'echo -n "$CUBEJS_DB_TYPE"' 2>/dev/null || echo unknown)
 export TAILWIND_DIALECT
 echo "engine dialect: ${TAILWIND_DIALECT}"

@@ -1,9 +1,6 @@
 cubes:
   - name: dim_product
-    # ClickHouse flattens the Iceberg namespace INTO the table name, so the table is
-    # literally called 'raw.dim_product' inside the 'datalake' database. This is the
-    # idiosyncrasy engines.yaml warns about and the first real test of sql_table.
-    sql_table: datalake.`raw.dim_product`
+    sql_table: raw.dim_product
     public: false
     measures:
       - name: product_count
