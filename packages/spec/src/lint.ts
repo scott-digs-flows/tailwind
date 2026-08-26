@@ -168,8 +168,13 @@ export function lintBundle(root: string, codeownersPath = 'CODEOWNERS'): Finding
     const kind = kindFromFilename(file);
     if (kind === null) {
       // A stray file in the reviewed tree is either dead or an escape hatch. Both are
-      // worth surfacing; neither should sit there unnoticed.
-      if (!file.endsWith('.gitkeep')) add('unknown-file', 'not a recognised spec kind (expected *.cube.yml, *.view.yml, *.dashboard.yml)');
+      // worth surfacing. Markdown is neither -- authors need somewhere to explain a
+      // model, and content/README.md is the guide for this directory. Deliberately
+      // NOT .txt: a stray notes.txt is exactly the scratch file this rule is for.
+      const documentation = file.endsWith('.md') || file.endsWith('.gitkeep');
+      if (!documentation) {
+        add('unknown-file', 'not a recognised spec kind (expected *.cube.yml, *.view.yml, *.dashboard.yml)');
+      }
       continue;
     }
 

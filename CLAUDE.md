@@ -27,6 +27,7 @@ Useful input to Q-01 and ADR-002/003. Product has confirmed there is flexibility
 | Designing the architecture | [02-architecture-brief.md](docs/product/02-architecture-brief.md) + [08-poc-scope.md](docs/product/08-poc-scope.md) |
 | Implementing a ticket | The ticket's `req_ids` in [01-requirements.md](docs/product/01-requirements.md), plus the governing ADR |
 | Confused by a term | [07-domain-model.md §1](docs/product/07-domain-model.md) |
+| **Authoring a model or dashboard by hand** | **[content/README.md](content/README.md)** — the P3 path, with the five rules that bite |
 
 **M0–M2 is a POC** testing one hypothesis; M3–M4 is GA. `08-poc-scope.md` is a filter over the
 requirements and **wins where they conflict**. Don't build GA concerns into POC work — but read

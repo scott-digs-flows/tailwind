@@ -23,6 +23,11 @@ views:
           - internet_order_date
       # Root-level: a multi-fact query needs every fact to reach the shared dimension
       # directly, not nested behind one of them.
+      - join_path: fact_reseller_sales.dim_reseller
+        includes:
+          - reseller_count
+          - reseller_name
+          - business_type
       - join_path: dim_product
         includes:
           - product_count

@@ -16,6 +16,9 @@ Handoff package for the systems architect and full-stack engineer. Read in order
 | [09-git-integration-setup.md](09-git-integration-setup.md) | Runbook for the GitHub App that brokers PRs on an author's behalf | Product (setup), Full-stack |
 | **[10-wizard-of-oz-protocol.md](10-wizard-of-oz-protocol.md)** | **Run-ready test of the central hypothesis with no application code** — do this first | **Product** |
 
+Authoring a model or dashboard by hand: [`content/README.md`](../../content/README.md). These
+documents record *decisions*; that one records *how to do the thing*.
+
 Backlog lives in [`TICKETS.csv`](../../TICKETS.csv) at the repo root — 132 tickets across 12
 epics and 5 milestones (99 POC, 33 GA). Every requirement prioritized `Must` or `Should` has at
 least one ticket; traceability is verified mechanically.
@@ -59,23 +62,20 @@ Draft v0.3 — **POC-first.** M0–M2 tests one hypothesis; GA concerns begin at
   end-to-end (Fastify API, React + Vite front end), Apache ECharts with a no-browser headless render
   path, Cube Core behind the Tailwind façade, one VM running one Docker Compose file.
 
-**One decision Product owes before the scaffold pins a version**
-- **Which Cube version do we pin to?** The stated constraint is "an LTS line"; that is currently
-  incompatible with multi-fact views, which are how Cube handles chasm traps and the reason it won
-  ADR-003. Architect recommends pinning **v1.7.x** and treating the LTS constraint as satisfied in
-  spirit — argument in [ADR-003 §Correction 3](../adr/ADR-003-semantic-engine-selection.md) and
-  [Q-02](04-open-questions.md). Needs a yes/no.
+**Decided since**
+- **Cube pinned to v1.7.x** — "an LTS line" was incompatible with multi-fact views, the chasm-trap
+  mechanism that won ADR-003. See [ADR-003 §Version pin](../adr/ADR-003-semantic-engine-selection.md).
+- **Q-01 answered: ClickHouse**, single dialect, `certified` by a computed conformance result —
+  [ADR-002](../adr/ADR-002-warehouse-of-record-and-dialect-tiers.md). The DuckDB `development` tier
+  was retired: ClickHouse runs as a container, so CI needs no cloud credentials and a second
+  dialect bought nothing ([§12.2](06-dialect-strategy.md)).
+- **The M0 ADR set is complete.** ADR-001, 002, 003, 004, 005, 006, 014.
 
-**Still blocking M0 kickoff**
-- **Q-01** — warehouse of record and dialect tiers. The architect has responded in
-  [06-dialect-strategy.md §11](06-dialect-strategy.md); what remains is Product's answer on where
-  the pilot data and the legacy BI content actually live, and whether any warehouse outside
-  `engines.yaml` is in play. **This no longer blocks the skeleton** — DuckDB is the `development`
-  dialect, so M0 builds and tests with no warehouse credentials and no spend. It blocks ADR-002 and
-  nothing else.
-- **Integration inventory** — the OPEN rows in [07-domain-model.md §4](07-domain-model.md). The
-  secret store and observability standards are the two that can still invalidate an ADR;
-  ADR-001 D2 and ADR-006 D4 are both written to keep those answers swappable.
+**Still open, and all Product's**
+- **Integration inventory** — the OPEN rows in [07-domain-model.md §4](07-domain-model.md). Secret
+  store and observability standards are the two that can still invalidate an ADR.
+- **T-108** the GitHub App, **T-002** pre-rollout baselines (they expire once behaviour changes),
+  and the wizard-of-oz chain (T-120–T-127) if the thesis test is wanted before M2.
 
 See [04-open-questions.md](04-open-questions.md) for all nineteen.
 

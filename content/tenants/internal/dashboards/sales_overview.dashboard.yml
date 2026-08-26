@@ -88,3 +88,20 @@ charts:
       order:
         - member: sales.reseller_sales
           dir: desc
+  - id: by_business_type
+    title: Reseller sales by business type
+    type: bar
+    layout:
+      x: 0
+      y: 12
+      w: 6
+      h: 5
+    query:
+      view: sales
+      metrics:
+        - sales.reseller_sales
+      dimensions:
+        - sales.business_type
+      order:
+        - member: sales.reseller_sales
+          dir: desc

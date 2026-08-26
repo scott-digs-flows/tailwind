@@ -10,6 +10,9 @@ cubes:
       - name: reseller_order
         relationship: many_to_one
         sql: '{CUBE}.sales_order_number = {reseller_order}.sales_order_number'
+      - name: dim_reseller
+        relationship: many_to_one
+        sql: '{CUBE}.reseller_key = {dim_reseller}.reseller_key'
       - name: dim_product
         relationship: many_to_one
         sql: '{CUBE}.product_key = {dim_product}.product_key'

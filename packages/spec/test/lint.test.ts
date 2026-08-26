@@ -110,3 +110,12 @@ test('distinct metric names across cubes are fine', () => {
   });
   assert.deepEqual(lintBundle(root, join(root, 'MISSING')).filter((f) => f.rule === 'duplicate-metric'), []);
 });
+
+test('documentation in the reviewed tree is not a stray file', () => {
+  // The rule targets dead files and escape hatches. An author explaining a model, or
+  // the authoring guide itself, is neither -- and a lint that fights documentation
+  // teaches people to stop writing it.
+  const root = bundle({ 'README.md': '# how this model works', 'semantic/cubes/NOTES.md': 'context' });
+  assert.deepEqual(lintBundle(root, join(root, 'MISSING')).map((f) => f.rule), [],
+    'markdown is documentation; .txt stays flagged, per the stray-file test above');
+});
