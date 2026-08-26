@@ -1,0 +1,57 @@
+cubes:
+  - name: dim_sales_territory
+    sql_table: raw.dim_sales_territory
+    public: false
+    measures:
+      - name: territory_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Number of territories.
+            certification: certified
+    dimensions:
+      - name: sales_territory_key
+        sql: sales_territory_key
+        type: number
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Territory surrogate key.
+            certification: certified
+      - name: region
+        sql: sales_territory_region
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Territory region.
+            certification: certified
+      - name: country
+        sql: sales_territory_country
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Territory country.
+            certification: certified
+      - name: territory_group
+        sql: sales_territory_group
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Territory group.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: AdventureWorks sales territory dimension.
+        certification: certified

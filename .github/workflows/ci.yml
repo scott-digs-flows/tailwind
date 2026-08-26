@@ -1,0 +1,244 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Versions come from ONE place (ADR-001). Reading them here is what keeps
+      # CI and the compose file from drifting.
+      - name: Load pinned versions
+        run: cat infra/versions.env | grep -v '^#' | sed 's/ *#.*//' >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # No version here on purpose: it comes from packageManager in package.json.
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      # --frozen-lockfile is load-bearing: it makes the pnpm 11 allowBuilds state
+      # and the lockfile fail loudly here rather than differ silently from a laptop.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r --if-present typecheck
+      - run: pnpm -r --if-present build
+      - run: pnpm -r --if-present test
+
+      # FR-SEM-11: the same validator the app and the CLI use, run over the reviewed
+      # artifacts. If these three ever disagree about what is valid, the review gate lies.
+      - name: Validate specs
+        run: node packages/cli/src/main.ts validate content
+
+      # ADR-004 D3. Non-canonical bytes cannot be merged, which is what keeps every
+      # subsequent diff in the product's history minimal -- and the review gate honest.
+      - name: Specs are canonically formatted
+        run: node packages/cli/src/main.ts fmt --check content
+
+      # The traceability gate. Mechanical rules belong in a check, not in memory.
+      - name: Validate docs and backlog
+        run: python3 scripts/validate_docs.py
+
+      - name: Compose config is valid
+        run: |
+          docker compose --env-file infra/versions.env -f infra/docker-compose.yml config --quiet
+          docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml config --quiet
+
+  # T-105 / NFR-SEC-02. Two layers, because they catch different things: `pnpm audit`
+  # sees our dependency tree, Trivy sees the base images we do not control. Neither
+  # subsumes the other.
+  supply-chain:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat infra/versions.env | grep -v '^#' | sed 's/ *#.*//' >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v4
+        with: { run_install: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Fails on criticals only. High and below are reported without blocking: a gate
+      # that cries wolf gets bypassed, and a bypassed gate protects nothing.
+      - name: Audit dependencies
+        run: |
+          pnpm audit --audit-level critical
+          pnpm audit --audit-level high || echo "::warning::high-severity advisories present (not blocking)"
+
+      # The base images are pinned in versions.env, so a vulnerability here is a
+      # deliberate version bump, not a surprise.
+      - name: Scan base images
+        uses: aquasecurity/trivy-action@v0.28.0
+        with:
+          scan-type: image
+          image-ref: node:${{ env.NODE_VERSION }}-alpine
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Scan the engine image
+        uses: aquasecurity/trivy-action@v0.28.0
+        with:
+          scan-type: image
+          image-ref: cubejs/cube:${{ env.CUBE_VERSION }}
+          severity: CRITICAL
+          exit-code: '0'   # report only: we do not control Cube's base image
+          ignore-unfixed: true
+
+  images:
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat infra/versions.env | grep -v '^#' | sed 's/ *#.*//' >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          build-args: NODE_VERSION=${{ env.NODE_VERSION }}
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build and push web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          build-args: |
+            NODE_VERSION=${{ env.NODE_VERSION }}
+            NGINX_VERSION=${{ env.NGINX_VERSION }}
+          push: true
+          tags: ghcr.io/${{ github.repository }}/web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy is skipped until the VM exists (T-133). It fails closed rather than
+  # pretending: no DEPLOY_HOST secret, no job.
+  deploy:
+    needs: images
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: poc
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m 600 /dev/stdin ~/deploy_key <<< "$DEPLOY_KEY"
+          ssh -o StrictHostKeyChecking=accept-new -i ~/deploy_key "$DEPLOY_HOST" \
+            "cd /srv/tailwind && git pull --ff-only && \
+             docker compose --env-file infra/versions.env -f infra/docker-compose.yml pull && \
+             docker compose --env-file infra/versions.env -f infra/docker-compose.yml up -d"
+
+  # FR-SEM-13 / 06-dialect-strategy.md section 11: a dialect's support TIER is a
+  # conformance result computed from this suite on a pinned engine version -- not a
+  # claim we write into a table. The negative control runs too, because a suite that
+  # still passes with the mechanism disabled is testing nothing.
+  # FR-SEM-13: a dialect's TIER is a conformance result computed on a pinned engine
+  # version, not a claim in a table. Until this job exists the suite runs only on a
+  # laptop, and nothing stops a model change silently breaking fan-out detection
+  # between commits -- which is exactly what the negative control is for (T-137).
+  conformance:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat infra/versions.env | grep -v '^#' | sed 's/ *#.*//' >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v4
+        with: { run_install: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # ClickHouse is the warehouse of record (ADR-002) and runs as a container, so
+      # there is no cloud credential in the build path. That is why the DuckDB
+      # development tier was retired rather than maintained.
+      - name: Start the warehouse and the engine
+        run: |
+          docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml up -d
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:7400/readyz >/dev/null 2>&1 && break
+            sleep 2
+          done
+
+      # /readyz is not proof (T-118: it passes while the model is unusable), so
+      # readiness is established with a real query before the suite runs.
+      - name: Wait for the engine to actually serve a query
+        run: |
+          for i in $(seq 1 60); do
+            node packages/semantic/test/manual/ping.ts >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "engine never served a query" >&2; exit 1
+
+      - name: Conformance suite and negative control
+        run: ./scripts/conformance.sh
+
+  # T-130. The guard checks the connecting ROLE's privileges, not only the table
+  # policies -- ADR-014's backstop once shipped complete and inert because the app
+  # connected as a superuser, and superusers bypass RLS entirely.
+  tenancy-guard:
+    needs: check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.6-alpine
+        env:
+          POSTGRES_USER: tailwind
+          POSTGRES_PASSWORD: tailwind
+          POSTGRES_DB: tailwind
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U tailwind" --health-interval 3s
+          --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat infra/versions.env | grep -v '^#' | sed 's/ *#.*//' >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v4
+        with: { run_install: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Migrate, then guard
+        env:
+          DATABASE_ADMIN_URL: postgres://tailwind:tailwind@localhost:5432/tailwind
+          DATABASE_URL: postgres://tailwind_app:tailwind_app@localhost:5432/tailwind
+          APP_DB_PASSWORD: tailwind_app
+        run: node apps/api/src/tenancy-guard-cli.ts --migrate
