@@ -84,7 +84,7 @@ jobs:
       # The base images are pinned in versions.env, so a vulnerability here is a
       # deliberate version bump, not a surprise.
       - name: Scan base images
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: image
           image-ref: node:${{ env.NODE_VERSION }}-alpine
@@ -93,7 +93,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Scan the engine image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: image
           image-ref: cubejs/cube:${{ env.CUBE_VERSION }}
