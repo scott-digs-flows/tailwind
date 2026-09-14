@@ -42,13 +42,14 @@ Non-negotiables:
 ## After writing
 
 1. Update the status table in [docs/adr/README.md](../../../docs/adr/README.md).
-2. Update the producing ticket in `TICKETS.csv` (`status` → `review` or `done`). Use the `ticket`
-   skill.
+2. Update the producing ticket (status → In Review or Done) with the `ticket` skill, which knows
+   whether JIRA or `TICKETS.csv` is authoritative today.
 3. If the decision answers or changes an open question, update
    [04-open-questions.md](../../../docs/product/04-open-questions.md) with a dated resolution and
    its consequences.
 4. If it changes scope, update [01-requirements.md](../../../docs/product/01-requirements.md)
-   **before** the tickets.
+   **before** the tickets. Hand the resulting backlog changes to `delivery-lead` rather than
+   guessing at ticket shape — an ADR that quietly reshapes the plan is how the two drift apart.
 5. Run `python3 scripts/validate_docs.py`.
 
 ## Superseding

@@ -4,9 +4,11 @@ Analytics-as-code with an AI authoring surface. Business users describe what the
 language; AI composes it **only** out of a governed semantic layer; the data team approves it
 through a pull request. Replaces Tableau / Power BI / Looker.
 
-**Current phase: M0 walking skeleton, starting now.** The seven M0 architecture decisions are
-written (ADR-001, ADR-003, ADR-004, ADR-005, ADR-006, ADR-014 — ADR-002 waits on Q-01). There is
-still no application code; T-010 (repo scaffold) is the next thing to land.
+**Current phase: M0 implementation, underway.** The seven M0 architecture decisions are written
+and accepted (ADR-001 through ADR-006 and ADR-014). The scaffold and the walking skeleton have
+landed, along with the conformance suite, the tenancy guard and the supply-chain scan — 28 of 137
+tickets are done. The remaining M0 blocker is T-133, provisioning the VM, which is the only
+`blocked` ticket in the backlog.
 
 **The stack, so you do not have to read five ADRs to start:** TypeScript end-to-end — Fastify API,
 React + Vite front end, one shared `packages/spec` for schemas, parsing and the canonical YAML
@@ -59,10 +61,40 @@ Two corollaries worth internalizing:
 - **The hand-written path is never second-class.** Analytics engineers must be able to do
   everything via CLI and files, with no AI involved.
 
+## The team
+
+Four agents, each a seat someone would actually hold. Use them for work in their lane rather than
+doing it inline — they carry context you would otherwise have to rebuild.
+
+| Agent | Seat |
+|---|---|
+| `systems-architect` | Architecture and ADRs. Designs; does not implement. |
+| `product-owner` | Independent critical review of product artifacts. Did not write them, has no stake in them being right. |
+| `delivery-lead` | Owns the JIRA backlog: writes and grooms tickets, guards traceability and dependency integrity, plans milestones. |
+| `implementer` | Builds a ticket end to end — code, tests at the right level, every gate CI runs, the PR. |
+
+Four skills carry the rules that must not live in someone's memory:
+
+| Skill | What it is for |
+|---|---|
+| `ticket` | Writing, splitting and re-statusing TW tickets; the JIRA field encoding and the migration runbook. |
+| `adr` | Writing, revising and superseding ADRs. |
+| `implement-ticket` | Ready check, read order, test levels, and the exact local gate sequence. |
+| `review-gate` | The seven binding constraints and the repo traps, as checkable questions. Run alongside `/code-review`, not instead of it. |
+
+**Review is independent.** `implementer` does not review its own diff — run `/code-review` and the
+`review-gate` skill from the main session after it returns.
+
 ## Working in this repo
 
-**Backlog:** [`TICKETS.csv`](TICKETS.csv) — 132 tickets. Column contract and conventions in
-[05-ways-of-working.md](docs/product/05-ways-of-working.md). Never renumber or reuse a ticket ID.
+**Backlog: migrating to JIRA project `TW`** (`scottdigsflows.atlassian.net`). Conventions, field
+encoding and the migration runbook live in the `ticket` skill.
+
+**Until `scripts/validate_jira.py` lands in CI, [`TICKETS.csv`](TICKETS.csv) is still authoritative
+and JIRA is a rehearsal.** The CSV is retired in the same PR that lands that check — never run both
+as sources of truth. The reasoning, and the fourteen invariants that would otherwise vanish
+silently, are in [05-ways-of-working.md](docs/product/05-ways-of-working.md). Never renumber or
+reuse a ticket ID; `T-###` survives the migration as `legacy_id` because ADRs and commits cite it.
 
 **Decisions:** [`docs/adr/`](docs/adr/) — numbers assigned in `02-architecture-brief.md §4`.
 
