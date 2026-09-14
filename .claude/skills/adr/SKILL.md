@@ -50,7 +50,7 @@ Non-negotiables:
 4. If it changes scope, update [01-requirements.md](../../../docs/product/01-requirements.md)
    **before** the tickets. Hand the resulting backlog changes to `delivery-lead` rather than
    guessing at ticket shape — an ADR that quietly reshapes the plan is how the two drift apart.
-5. Run `python3 scripts/validate_docs.py`.
+5. Run `pnpm validate:backlog` if you touched a ticket or a requirement.
 
 ## Superseding
 

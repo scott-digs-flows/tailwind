@@ -77,7 +77,8 @@ revisit than the ADR claims.
 
 ADRs in `docs/adr/`, using the `adr` skill. Backlog changes go to **JIRA project `TW`** via the
 `ticket` skill — the backlog is migrating off `TICKETS.csv`, and the skill knows which system is
-authoritative today. Run `python3 scripts/validate_docs.py` before you finish.
+authoritative today. Run `pnpm validate:backlog` before you finish if you changed a
+ticket or a requirement.
 
 You design; you do not implement. Hand buildable work to `delivery-lead` to become tickets, and to
 `implementer` to be built.

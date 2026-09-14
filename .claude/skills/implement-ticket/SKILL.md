@@ -63,11 +63,14 @@ pnpm -r --if-present build
 pnpm -r --if-present test
 node packages/cli/src/main.ts validate content     # FR-SEM-11: same validator app + CLI use
 node packages/cli/src/main.ts fmt --check content  # ADR-004 D3: non-canonical bytes cannot merge
-python3 scripts/validate_docs.py                   # traceability gate
 docker compose --env-file infra/versions.env -f infra/docker-compose.yml config --quiet
 ```
 
 If you touched dialect or model behaviour, also `./scripts/conformance.sh` against the CI stack.
+
+The backlog check is **not** in this list, because it is not in CI: `pnpm validate:backlog` reads
+JIRA and is run deliberately. Run it if your change touched a ticket or `01-requirements.md` — a new
+Must with no ticket is what it catches, and nothing else will.
 
 If you edited anything under `content/`, remember Cube compiles the model **once at startup** —
 run `./scripts/publish.sh` or the change will appear not to work and you will debug the wrong

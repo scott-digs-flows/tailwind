@@ -10,14 +10,14 @@ IDs, link direction, status mapping, JQL and the migration runbook are in
 [references/jira-mapping.md](references/jira-mapping.md) — read it before your first write, and
 re-read the mapping table before any bulk operation.
 
-## Which system is authoritative, today
+## Which system is authoritative
 
-**Until `scripts/validate_jira.py` lands in CI, `TICKETS.csv` is still the source of truth and
-JIRA is a rehearsal.** After it lands, the CSV is deleted in that same PR and JIRA is the backlog.
+**JIRA, and only JIRA.** `TICKETS.csv` was deleted in the same change that landed
+`scripts/validate_jira.py`, because there is never a period where both are authoritative.
 
-There is never a period where both are authoritative. If you find yourself writing the same change
-to both because you are not sure which one counts, stop and say so — that ambiguity is the failure
-mode `05-ways-of-working.md` warns about, and it is invisible until a number is wrong.
+If you ever find yourself writing the same change to two places because you are not sure which one
+counts, stop and say so — that ambiguity is the failure mode `05-ways-of-working.md` warns about,
+and it is invisible until a number is wrong.
 
 ## What JIRA will not do for you
 

@@ -69,7 +69,8 @@ by"* the thing that must happen first.
 ## The meta block
 
 `req_ids` and `legacy_id` are the traceability spine, and JIRA has nowhere native to put them.
-They go in a fenced block at the **end** of the description, which the CI check parses:
+They go in a fenced block at the **end** of the description, which `scripts/validate_jira.py`
+parses — it reads code blocks only, so a `req_ids:` written in prose cannot shadow the real one:
 
 ````
 ```tailwind-meta
