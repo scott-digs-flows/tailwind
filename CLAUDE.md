@@ -4,9 +4,11 @@ Analytics-as-code with an AI authoring surface. Business users describe what the
 language; AI composes it **only** out of a governed semantic layer; the data team approves it
 through a pull request. Replaces Tableau / Power BI / Looker.
 
-**Current phase: M0 walking skeleton, starting now.** The seven M0 architecture decisions are
-written (ADR-001, ADR-003, ADR-004, ADR-005, ADR-006, ADR-014 — ADR-002 waits on Q-01). There is
-still no application code; T-010 (repo scaffold) is the next thing to land.
+**Current phase: M0 implementation, underway.** The seven M0 architecture decisions are written
+and accepted (ADR-001 through ADR-006 and ADR-014). The scaffold and the walking skeleton have
+landed, along with the conformance suite, the tenancy guard and the supply-chain scan — 28 of 137
+tickets are done. The remaining M0 blocker is T-133, provisioning the VM, which is the only
+`blocked` ticket in the backlog.
 
 **The stack, so you do not have to read five ADRs to start:** TypeScript end-to-end — Fastify API,
 React + Vite front end, one shared `packages/spec` for schemas, parsing and the canonical YAML
@@ -59,10 +61,38 @@ Two corollaries worth internalizing:
 - **The hand-written path is never second-class.** Analytics engineers must be able to do
   everything via CLI and files, with no AI involved.
 
+## The team
+
+Four agents, each a seat someone would actually hold. Use them for work in their lane rather than
+doing it inline — they carry context you would otherwise have to rebuild.
+
+| Agent | Seat |
+|---|---|
+| `systems-architect` | Architecture and ADRs. Designs; does not implement. |
+| `product-owner` | Independent critical review of product artifacts. Did not write them, has no stake in them being right. |
+| `delivery-lead` | Owns the JIRA backlog: writes and grooms tickets, guards traceability and dependency integrity, plans milestones. |
+| `implementer` | Builds a ticket end to end — code, tests at the right level, every gate CI runs, the PR. |
+
+Four skills carry the rules that must not live in someone's memory:
+
+| Skill | What it is for |
+|---|---|
+| `ticket` | Writing, splitting and re-statusing TW tickets; the JIRA field encoding and the migration runbook. |
+| `adr` | Writing, revising and superseding ADRs. |
+| `implement-ticket` | Ready check, read order, test levels, and the exact local gate sequence. |
+| `review-gate` | The seven binding constraints and the repo traps, as checkable questions. Run alongside `/code-review`, not instead of it. |
+
+**Review is independent.** `implementer` does not review its own diff — run `/code-review` and the
+`review-gate` skill from the main session after it returns.
+
 ## Working in this repo
 
-**Backlog:** [`TICKETS.csv`](TICKETS.csv) — 132 tickets. Column contract and conventions in
-[05-ways-of-working.md](docs/product/05-ways-of-working.md). Never renumber or reuse a ticket ID.
+**Backlog: JIRA project `TW`** (`scottdigsflows.atlassian.net`) — 12 epics, 137 tickets. Conventions
+and field encoding live in the `ticket` skill. `TICKETS.csv` is **retired**; it and JIRA were never
+both authoritative, which is the one rule `05-ways-of-working.md` insists on.
+
+Never renumber or reuse a ticket ID. `T-###` survives as `legacy_id` because ADRs and commit
+messages cite it — look one up with `project = TW AND text ~ "T-014"`.
 
 **Decisions:** [`docs/adr/`](docs/adr/) — numbers assigned in `02-architecture-brief.md §4`.
 
@@ -88,15 +118,22 @@ Cube compiles the model **once at startup** (`CUBEJS_DEV_MODE=false`), so a chan
 published on merge, not hot-reloaded. ADR-007 / T-029 replaces the restart with an immutable
 per-merge bundle.
 
-**Validate before committing:**
+**Check the backlog's health — deliberately, not in CI:**
 
 ```bash
-python3 scripts/validate_docs.py
+pnpm validate:backlog                                 # needs JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN
+python3 scripts/validate_jira.py --offline dump.json  # same checks over a saved dump
 ```
 
-Checks ticket schema, dependency integrity, cycles, and that every Must/Should requirement has a
-ticket. It is a gate, not a suggestion — mechanical rules belong in a check rather than in
-someone's memory. That is the same argument the product itself makes.
+Checks the label schema, epic parentage, traceability, dependency integrity, **cycles**, that every
+Must/Should requirement has a ticket, that nothing is In Progress behind an open blocker, and that
+no XL has started. It still **fails closed** — no credentials, no pass — so it can be scripted.
+
+**This is not a CI gate and should not become one.** It was one while the backlog was a file in this
+repo, where a commit could break it. Now that tickets live in JIRA, gating merges on it would mean a
+bugfix cannot land because a token expired. Run it when you change `docs/product/01-requirements.md`
+(a new Must with no ticket is the failure it catches most often) and periodically on the backlog
+itself. The `delivery-lead` agent owns that routine.
 
 **Scope changes update the requirement doc first, then the ticket.** The docs are the contract
 with the architect; drifting tickets away from them silently is how handoffs fail.

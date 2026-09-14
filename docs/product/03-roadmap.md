@@ -11,7 +11,7 @@ is a demonstrable behavior, not a checklist of merged tickets.
 > pull deferred work back in.
 
 Durations are deliberately omitted — they depend on team size and the answers to Q-01…Q-06.
-Relative sizing is captured in `TICKETS.csv` (`size` column: S/M/L/XL).
+Relative sizing is captured on each JIRA issue (the `size-*` label: S/M/L/XL).
 
 ---
 

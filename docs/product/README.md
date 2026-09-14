@@ -19,7 +19,7 @@ Handoff package for the systems architect and full-stack engineer. Read in order
 Authoring a model or dashboard by hand: [`content/README.md`](../../content/README.md). These
 documents record *decisions*; that one records *how to do the thing*.
 
-Backlog lives in [`TICKETS.csv`](../../TICKETS.csv) at the repo root — 132 tickets across 12
+Backlog lives in JIRA project `TW` (`scottdigsflows.atlassian.net`) — 137 tickets across 12
 epics and 5 milestones (99 POC, 33 GA). Every requirement prioritized `Must` or `Should` has at
 least one ticket; traceability is verified mechanically.
 

@@ -12,12 +12,46 @@ export interface CompiledQuery {
   engineQuery: Record<string, unknown>;
   /** Which view the query is scoped to -- dashboards may reference views only (FR-SEM-02). */
   view: string;
+  /** The effective row limit: the author's, or the FR-ADM-03 cap, whichever is smaller. */
+  rowLimit: number;
+  /**
+   * True when the FR-ADM-03 cap is the binding constraint rather than the author's own
+   * `limit`.
+   *
+   * This distinction is the whole point. An author who writes `limit: 10` for a "Top 10
+   * products" chart got exactly what they asked for -- telling them their result was
+   * truncated would be a warning on a chart that is behaving correctly, every time it
+   * loads. A warning that fires when nothing is wrong teaches people to ignore the
+   * channel, which is worse than the silence it replaced.
+   */
+  capBinds: boolean;
+  /** What to ask the engine for: rowLimit, plus a probe row when the cap binds. */
+  engineLimit: number;
 }
+
+/**
+ * FR-ADM-03. The default result-set cap.
+ *
+ * Named rather than inline so the number appears once and a caller can report it in
+ * the `row_limit_reached` notice instead of restating a magic constant.
+ */
+export const DEFAULT_ROW_LIMIT = 10000;
 
 export interface QueryResult {
   rows: Record<string, unknown>[];
   sql: string;
   asOf: string | undefined;
+  /**
+   * True when the result hit the FR-ADM-03 cap and rows were dropped.
+   *
+   * The cap is deliberate; a cap you cannot detect is not. Without this, "revenue by
+   * customer" silently becomes "revenue by the first 10,000 customers" and renders as
+   * a complete chart -- a confident chart with a wrong number, which is the failure
+   * this product exists to prevent.
+   */
+  truncated: boolean;
+  /** The limit that was applied, so a caller can say what it was. */
+  rowLimit: number;
 }
 
 /**
@@ -75,14 +109,37 @@ export function compile(query: SemanticQuery, ctx: SecurityContext): CompiledQue
   }
   // FR-ADM-03: a result-set cap exists from the first query rather than being added
   // after something falls over.
-  engineQuery['limit'] = query.limit ?? 10000;
+  const asked = query.limit ?? DEFAULT_ROW_LIMIT;
+  const rowLimit = Math.min(asked, DEFAULT_ROW_LIMIT);
+  const capBinds = asked >= DEFAULT_ROW_LIMIT;
+  // Ask for ONE row more than the cap, so that hitting it is detectable -- a cap you
+  // cannot detect is not a cap, it is a quiet lie. Only when the cap binds: probing an
+  // author's deliberate `limit: 10` would buy a row we have nothing to say about.
+  const engineLimit = capBinds ? rowLimit + 1 : rowLimit;
+  engineQuery['limit'] = engineLimit;
 
   // The context is not yet a predicate source in the POC (the pilot area has no row
   // differences), but it is threaded here so the seam is real. Tenant is carried into
   // the engine as a JWT claim by the client.
   void ctx;
 
-  return { engineQuery, view: query.view };
+  return { engineQuery, view: query.view, rowLimit, capBinds, engineLimit };
+}
+
+/**
+ * Drop the probe row and say whether the cap bit.
+ *
+ * Pure and exported so the decision is testable without a network hop -- the bug this
+ * guards against is a silent regression to `truncated: false`, which no integration
+ * test would notice because the chart still renders.
+ */
+export function applyRowLimit(
+  data: Record<string, unknown>[],
+  rowLimit: number,
+  capBinds: boolean,
+): { rows: Record<string, unknown>[]; truncated: boolean } {
+  const truncated = capBinds && data.length > rowLimit;
+  return { rows: truncated ? data.slice(0, rowLimit) : data, truncated };
 }
 
 /** Compile, then execute. The only path from a spec to a number. */
@@ -91,12 +148,15 @@ export async function runQuery(
   query: SemanticQuery,
   ctx: SecurityContext,
 ): Promise<QueryResult> {
-  const { engineQuery } = compile(query, ctx);
+  const { engineQuery, rowLimit, capBinds } = compile(query, ctx);
+  // The SQL shown to a user must describe the result they actually got. The probe row
+  // is our business, not theirs: showing `LIMIT 10001` above 10,000 rows in the
+  // "how is this calculated?" panel (FR-CON-02) undermines the one surface whose whole
+  // job is to be trusted -- and the same string is what lands in the audit record.
+  const shownQuery = { ...engineQuery, limit: rowLimit };
   const [result, sql]: [CubeResultSet, string] = await Promise.all([
     cubeLoad(opts, engineQuery, ctx),
-    // FR-CON-02: the generated SQL is always available, so "how is this calculated?"
-    // is answerable for every chart rather than being a debugging affordance.
-    cubeSql(opts, engineQuery, ctx).catch(() => ''),
+    cubeSql(opts, shownQuery, ctx).catch(() => ''),
   ]);
-  return { rows: result.data, sql, asOf: result.lastRefreshTime };
+  return { ...applyRowLimit(result.data, rowLimit, capBinds), sql, asOf: result.lastRefreshTime, rowLimit };
 }

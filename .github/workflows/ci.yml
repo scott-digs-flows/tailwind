@@ -47,9 +47,13 @@ jobs:
       - name: Specs are canonically formatted
         run: node packages/cli/src/main.ts fmt --check content
 
-      # The traceability gate. Mechanical rules belong in a check, not in memory.
-      - name: Validate docs and backlog
-        run: python3 scripts/validate_docs.py
+      # NOTE: backlog traceability is deliberately NOT checked here.
+      # It was a CI gate while tickets lived in TICKETS.csv, because the backlog was
+      # part of the checkout and a commit could break it. The backlog is in JIRA now,
+      # so the same check would mean every merge depends on an external service being
+      # reachable and a token being unexpired -- a build that goes red for a reason
+      # that has nothing to do with the change under review. Run
+      # `pnpm validate:backlog` deliberately instead; see docs/product/05-ways-of-working.md.
 
       - name: Compose config is valid
         run: |

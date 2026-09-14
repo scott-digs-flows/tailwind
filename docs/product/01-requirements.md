@@ -2,7 +2,8 @@
 
 **Status:** Draft v0.1 · Audience: Systems Architect, Full-Stack Engineer
 
-Requirement IDs are stable and referenced by tickets (`TICKETS.csv` → `req_ids`). Priority uses
+Requirement IDs are stable and referenced by tickets (the `req_ids` line in each JIRA issue's
+`tailwind-meta` block). Priority uses
 MoSCoW scoped to **v1 GA**, not to the whole roadmap.
 
 - `M` — Must have for GA
@@ -60,6 +61,7 @@ in the spec, under review — makes it a governed property rather than a knob so
 | FR-VIZ-04 | M | Interactions: cross-filtering between charts, drill-down along a dimension hierarchy, drill-through to row-level detail (subject to permissions), tooltips, legend toggling. |
 | FR-VIZ-05 | M | Dashboard-level filters and parameters, with defaults, URL-encoded state (shareable links), and per-user sticky state. |
 | FR-VIZ-06 | M | Export: PNG/SVG per chart, CSV/XLSX per chart's underlying result set, PDF for the dashboard. Exports respect row-level security. |
+| FR-VIZ-13 | M | A chart never presents a number it cannot stand behind. Query failure, empty result, a result truncated by the row cap, partial dashboard failure, and in-flight loading are **distinct, visible states** carrying a plain-language reason. Rendering a previous query's result while a new one is in flight, or a truncated result as though it were complete, is a defect. Every surface that renders data honours this, including the headless renderer — a CI screenshot must not be cleaner than what the user sees. |
 | FR-VIZ-07 | S | Scheduled delivery (email/Slack) of a dashboard snapshot; subscriptions are per-user and permission-checked at send time. |
 | FR-VIZ-08 | S | Conditional formatting and threshold/target markers. |
 | FR-VIZ-09 | S | Responsive layout down to tablet; graceful (read-only, single-column) phone rendering. |
@@ -76,6 +78,7 @@ in the spec, under review — makes it a governed property rather than a knob so
 | FR-CON-03 | M | Data freshness indicator per chart (as-of timestamp of the underlying source). |
 | FR-CON-04 | S | Favorites, recently viewed, and personal collections. |
 | FR-CON-05 | S | Comment/annotate on a dashboard or a specific data point, with @mentions. |
+| FR-CON-07 | S | A viewer can report that a number looks wrong from the chart showing it. The report captures the chart, the metric, the active filters, the as-of timestamp and the reporter, and reaches the artifact's owner. Reports are countable against merges, which is what makes the post-merge correction rate in `00-vision.md §8` measurable at all. |
 | FR-CON-06 | C | "Explain this dashboard" — AI-generated plain-language summary of trends and anomalies visible on screen. |
 
 ## FR-AI — AI assistance
@@ -108,6 +111,7 @@ The differentiator. Treat as first-class product, not plumbing.
 | FR-GOV-03 | M | CI on every PR: schema validation, semantic compilation, metric assertions, and lint. Failing CI blocks merge. |
 | FR-GOV-04 | M | CI renders affected dashboards against real data and attaches screenshots to the PR. |
 | FR-GOV-05 | M | CI posts a **metric diff** for changed metric definitions — before/after values over a defined sample window, with % delta. |
+| FR-GOV-12 | M | A user is notified of promotion-loop events that concern them or require them: a proposal awaiting their review, a comment on their proposal, changes requested, approval, merge, and publish. In-app notification is required; external channels (email, chat) are additive and must not be a precondition. Notifications are derived from the audit-event stream rather than emitted by request handlers, and are subject to the same visibility rules as the artifact they describe. |
 | FR-GOV-06 | S | CI posts an estimated query cost/scan volume, flagging anything over an admin-set threshold. |
 | FR-GOV-07 | M | CODEOWNERS-style routing: changes to semantic models require data-team approval; dashboard-only changes may be approved by a domain owner. |
 | FR-GOV-08 | M | Merge to the main branch triggers deployment of the artifact to all users, with a visible changelog entry. |

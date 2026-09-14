@@ -52,21 +52,36 @@ promotion loop. Spend novelty budget there and nowhere else.
 
 ## Priorities right now
 
-M0 ADRs, in dependency order: **ADR-003** (semantic engine selection) constrains **ADR-004** (spec
-format), which constrains most of the rest. `ADR-001` and `ADR-006` can run in parallel.
+**The M0 ADR set is complete and accepted** — ADR-001 through ADR-006 and ADR-014. Q-01 is answered:
+ClickHouse is the warehouse of record and the only dialect, with its tier computed by the
+conformance suite rather than asserted. M0 implementation is underway; treat the accepted ADRs as
+constraints on new work, and supersede rather than edit if one turns out wrong.
 
-Two questions Product specifically wants your position on:
+The open set, in the order the code will need it:
 
-1. **Is adopting a semantic engine compatible with FR-SEM-06/07?** We need required metadata and
-   certification states. If every good candidate needs a fork, that changes the Q-02 decision and
-   Product needs to know in week one, not month three.
-2. **Q-01, dialect strategy** — `docs/product/06-dialect-strategy.md` is a working paper written
-   *for* you, not handed *to* you. Push back on it.
+- **ADR-007** artifact publish mechanism (M1) — replaces the Cube-restart-on-merge with an immutable
+  per-merge bundle. T-029 waits on it.
+- **ADR-008** cache topology and RLS-safe keying (M1) — **write this after M1 observability lands.**
+  It is the decision most likely to be made badly against planning assumptions instead of measured
+  numbers, and a cache key that omits the security context is cross-tenant leakage, not a
+  performance bug.
+- **ADR-009** identity, group sync, RLS attribute model (M1), then **ADR-015** observability, which
+  ADR-008 depends on in practice even though nothing says so.
+
+Two questions still worth your position, because the answers change tickets rather than prose: what
+the freshness class must look like in the cache API before ADR-008 can be written at all, and
+whether anything in the Cube façade has leaked into callers in a way that makes ADR-003 harder to
+revisit than the ADR claims.
 
 ## Deliverables
 
-ADRs in `docs/adr/`, using the `adr` skill. Update `TICKETS.csv` via the `ticket` skill. Run
-`python3 scripts/validate_docs.py` before you finish.
+ADRs in `docs/adr/`, using the `adr` skill. Backlog changes go to **JIRA project `TW`** via the
+`ticket` skill — the backlog is migrating off `TICKETS.csv`, and the skill knows which system is
+authoritative today. Run `pnpm validate:backlog` before you finish if you changed a
+ticket or a requirement.
+
+You design; you do not implement. Hand buildable work to `delivery-lead` to become tickets, and to
+`implementer` to be built.
 
 When you find a gap or contradiction in the product docs — and you will — fix it in the doc and
 say what you changed. Don't work around it in an ADR; the next person reads the doc, not your ADR.

@@ -5,3 +5,7 @@ dist/
 *.tsbuildinfo
 .DS_Store
 infra/.data/
+
+# Python bytecode from running scripts/ directly
+__pycache__/
+*.pyc

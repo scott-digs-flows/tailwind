@@ -160,6 +160,17 @@ knob.
 
 - The class is an **input to the cache layer**, so it must exist in the cache API's shape from the
   first version even while only `standard` is exercised. Recutting a cache API later is expensive.
+  > *Sharpened by the architect, 2026-09-14, after reading the M0 code.* "In the API's shape" was
+  > too weak and was read as "carried on the response". Two things are required, and neither is
+  > satisfied today. **(a)** The class is a **required parameter of the compile-and-execute call**,
+  > in the same position and with the same no-overload rule as the security context — ADR-006 D4
+  > already specifies `compileAndExecute(ctx, query, freshness)`. At M0 it is carried only in the
+  > response envelope, which makes it a label rather than an input. **(b)** The class is **resolved
+  > server-side from the published artifact**, never accepted from a request body. It is a governed
+  > property of a reviewed spec (FR-FRESH-01/04); a client-chosen freshness class is an ungoverned
+  > cache-policy and cost knob, and it routes around FR-FRESH-04's approval gate for `operational`.
+  > Both must be true **before ADR-008 is written**, independent of the measurements ADR-008 waits
+  > on.
 - A blended cache-hit target is meaningless across classes — NFR-SCALE-03 is now stated per class,
   and the load test must report it that way.
 - `operational` has no meaningful result cache, so its cost scales with users × refresh rate. On a
@@ -247,7 +258,7 @@ starts.
 | ADR-004 | Spec format and file layout; JSON Schema strategy | M0 |
 | ADR-005 | Front-end stack and chart library | M0 |
 | ADR-006 | Backend language/framework and API style | M0 |
-| ADR-007 | Artifact publish mechanism (git → serving plane) | M1 |
+| ADR-007 | Artifact publish mechanism (git → serving plane) — **also owns** the CI *evidence* artifact (the structured, SHA-addressed output that both the PR comment and any in-app reviewer view render from) and the draft's `base_sha` versus the published bundle, which is `07-domain-model.md §3` edge case 1 in the publish mechanism's own vocabulary | M1 |
 | ADR-008 | Cache topology and RLS-safe keying strategy | M1 |
 | ADR-009 | Identity, group sync, and RLS attribute model | M1 |
 | ADR-010 | Git host integration and PR brokering (service account, attribution, webhooks) | M2 |
@@ -287,11 +298,18 @@ read `08-poc-scope.md`) · Q-06 (**yes**, the app brokers PRs; runbook in
 `09-git-integration-setup.md`) · Q-08 (coexist, usage-driven migration) · Q-19 (partially —
 freshness is tiered; sizing to be measured, not guessed).
 
-**Still blocking M0 kickoff:**
-- **Q-01** — warehouse of record and dialect tiers. See `06-dialect-strategy.md`; this is a
-  conversation to have *with* the architect, not a prerequisite handed to them.
-- **Q-04** — team size and timeline. Scoping, not architecture, but it decides what M2 contains.
-- **Integration inventory** — the OPEN rows in `07-domain-model.md §4`. Secret store and
-  observability standards in particular can invalidate an ADR after it's written.
+**Also decided since this section was written:** Q-01 (**ClickHouse** is the warehouse of record
+and the only dialect, with its tier computed by the conformance suite rather than asserted — see
+`04-open-questions.md` and ADR-002) · Q-04 (partially — ~20-person data team, split-time build team).
+
+**Still outstanding:**
+- **Integration inventory** — the remaining OPEN rows in `07-domain-model.md §4`. **Secret store**
+  and **observability standard** are the two that can still invalidate an ADR after it's written;
+  the observability answer gates ADR-015, and ADR-008 depends on ADR-015 in practice because the
+  cache decision must be made against measurements rather than the planning assumptions in
+  `08-poc-scope.md §5`.
+- **Q-10** (RLS attribute model) — the one unanswered question that genuinely blocks architecture
+  work. ADR-009 cannot be written without it, and it changes the ADR-008 cache key if the predicate
+  source is a warehouse mapping table rather than IdP groups.
 
 Everything else can be answered in parallel with M0.

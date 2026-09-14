@@ -11,7 +11,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
     "up": "docker compose --env-file infra/versions.env -f infra/docker-compose.yml up --build",
-    "validate:docs": "python3 scripts/validate_docs.py"
+    "validate:backlog": "python3 scripts/validate_jira.py"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
