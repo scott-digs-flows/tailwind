@@ -69,8 +69,16 @@ req_ids: FR-SEM-01 FR-SEM-02 ADR-003
 ````
 
 Rules: one fenced ` ```tailwind-meta ` block per issue, always last, space-separated IDs, no other
-keys unless the check learns them first. `depends_on` deliberately does **not** live here —
-dependencies are real JIRA links so the board, JQL and the cycle check all see the same graph.
+keys unless the check learns them first.
+
+`req_ids` holds **requirement and ADR identifiers only** — `FR-…`, `NFR-…`, `ADR-…`, `Q-…`. It
+never holds a ticket key. `legacy_id` is this issue's own former `T-###`, which is identity, not a
+relationship.
+
+**No relationship between two tickets is ever written as text.** `depends_on` deliberately does not
+live here: dependencies are real **Blocks** links, so the board, JQL and the cycle check all read
+the same graph. Epic membership is `parent`. Everything else is **Relates**. A ticket key typed into
+a description is invisible to all three and goes stale the moment anything is split.
 
 ## Status
 

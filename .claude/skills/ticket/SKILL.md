@@ -41,37 +41,146 @@ A gap you find here is a finding worth reporting, not a thing to quietly patch.
 
 ## Writing a ticket
 
-The `summary` is imperative and one line. The description is:
+A ticket is read by someone who was not in the conversation, often months later, often in a hurry.
+Write for that person. **Short and clear beats complete.**
+
+### Summary
+
+An imperative verb and an outcome, in plain language, around eight words.
+
+> ✅ `Cache query results without leaking rows between users`
+> ❌ `Implement RLS-safe cache keying per ADR-008 §3`
+> ❌ `Cache layer` — a topic, not a deliverable
+
+If the summary needs an "and", it is usually two tickets.
+
+### Description
+
+**Two sections. Aim for under 150 words.** If you need more, the ticket is too big or the reasoning
+belongs in a doc you link to.
 
 ```markdown
-## Why
-One or two sentences of the actual reason, tracing to the requirement. Not a restatement
-of the title.
+## Goal
+One or two plain sentences: what will be true when this is done, and why anyone cares.
+No jargon the reader cannot resolve from this page alone.
 
 ## Acceptance
-The observable behavior that makes this done. Not "implement X" — what is *true* when it
-is finished, in a form someone else could check.
-
-## Notes
-Only if there is something non-obvious: a trap, a decision already made, a file to start in.
+- [ ] An observable statement someone else could check
+- [ ] Another, if genuinely separate
 ```
 
+Add a `## Notes` section **only** for something non-obvious that would otherwise cost the
+implementer an hour — a known trap, a decision already made, the file to start in. Three sentences
+at most. It is not a place for background reading.
+
 Then the ` ```tailwind-meta ` block, last, carrying `req_ids` and `legacy_id`.
+
+### Write so anyone can understand it
+
+This product has heavy vocabulary — semantic layer, RLS, fan-out, freshness class, promotion loop.
+The ticket is not where a reader should learn it. Expand a term once in plain words, or link
+`07-domain-model.md §1` and move on. A stakeholder should be able to read the Goal and know whether
+they care.
+
+Prefer the concrete: *"a user in the West territory never sees East rows, even on a cache hit"*
+over *"enforce tenant-scoped predicate resolution at the caching boundary."*
+
+### Acceptance criteria are the ticket
+
+Most of a ticket's value is a sentence someone can disagree with. Each one is **observable,
+checkable, and true-or-false** — not a task list.
+
+> ✅ `p95 for the four-chart sales dashboard is under 2.5s against the CI ClickHouse fixture`
+> ✅ `Editing a metric in content/ and running publish.sh changes the number on the dashboard`
+> ❌ `Dashboard loads fast`
+> ❌ `Write unit tests` — that is how, not what
+
+Use Given/When/Then only when the setup genuinely matters. Usually a checkbox is clearer.
+
+## What does not go in the description
+
+Two rules, and they are absolute because breaking them is what turns a ticket into an archaeology
+site.
+
+**1. Related tickets go in JIRA's Linked Issues, never in the text.** Blocks, is blocked by,
+relates to, duplicates — all of it is a link. A ticket key typed into the description is invisible
+to the board, to JQL, to dependency checking, and it goes stale silently the moment anything is
+split or re-scoped.
+
+- `depends_on` → **Blocks** links. Direction is easy to reverse; see the mapping file.
+- Same-area or informative relationships → **Relates**.
+- Epic membership → the `parent` field, not a sentence.
+- Governed by an ADR? Link to the ADR's own ticket with **Relates**, and put the ADR's ID in
+  `req_ids`.
+
+The one exception is `req_ids` in the meta block, which holds **requirement and ADR identifiers,
+not ticket keys** — JIRA has nowhere native to put them and the coverage check has to parse them
+somewhere. `legacy_id` is this ticket's own former `T-###`, also identity rather than a
+relationship. Neither is a back door for "see also TW-42".
+
+**2. History goes in comments. The description is always present tense and currently true.**
+
+When scope changes, **rewrite the description so it describes the ticket as it now is**, then add a
+comment saying what changed and why. Never leave a trail in the description:
+
+> ❌ `UPDATE 2026-09-14: we dropped the Redis option, see below. ~~Original scope: …~~`
+
+A description carrying its own edit history stops being a specification and becomes a puzzle, and
+the reader cannot tell which paragraph is still true. JIRA already keeps the full field history, so
+the audit trail is not lost — you are only choosing where people read it.
+
+Comment, don't edit into the description: scope changes and why, decisions made in discussion,
+what blocked it and what unblocked it, status changes whose reason is not obvious from the linked
+PR, and anything you discovered that changes the estimate.
+
+## INVEST
+
+Test a ticket against these before you save it. Where one fails, either fix the ticket or say
+plainly why it is acceptable here.
+
+| | |
+|---|---|
+| **I**ndependent | Can this be built without waiting on something not yet started? Real dependencies exist in this project — when one is genuine, make it a **Blocks link**, do not pretend it is absent. Ordering that is merely convenient is not a dependency. |
+| **N**egotiable | Does it state the *outcome* rather than the implementation? Prescribe a solution only when the solution is the decision — and then say which ADR decided it. |
+| **V**aluable | Can you name who is better off? "Refactor the adapter" is valuable only if you can finish the sentence. Enabling work is legitimate; say what it enables. |
+| **E**stimable | Could someone sizing this say `S`/`M`/`L` without guessing? If not, the unknown is the real work — write a `type-spike` first. |
+| **S**mall | `size-L` or under, or it is not ready to pick up. `size-XL` is a flag meaning "not understood well enough to start". |
+| **T**estable | Does each acceptance criterion have an observation that settles it? If nobody could prove it false, it is a wish. |
+
+## The rest of the schema
 
 **`req_ids` is required.** A ticket with nothing to trace to is either missing context or should
 not exist. If the work is real but no requirement covers it, **add the requirement first** — the
 docs are the contract with the architect, and a ticket that outruns them is how a handoff fails.
 
-**Acceptance criteria are the deliverable.** Most of the value of a ticket is a sentence someone
-can disagree with. "Dashboard loads fast" is not one. "p95 for the four-chart sales dashboard is
-under 2.5s against the CI ClickHouse fixture" is.
-
 **Labels are the schema.** Every ticket gets its milestone, priority, `size-*`, `type-*` and
 `role-*` labels. Missing labels are not cosmetic — they are how the backlog is queried, and an
 unlabelled ticket is invisible to every planning question below.
 
-**Dependencies are Blocks links, and the direction is easy to reverse.** Check the mapping file,
-then verify one link reads correctly in the UI.
+## Worked example
+
+> **Summary** `Keep cached results from leaking rows between users`
+>
+> **Goal**
+> Two people looking at the same dashboard can be entitled to different rows. Today a cached
+> result could be handed to the second person unchanged. This makes the cache aware of who is
+> asking, so that never happens.
+>
+> **Acceptance**
+> - [ ] Two users with different row entitlements never receive each other's cached rows
+> - [ ] A repeat query by the *same* user still returns from cache
+> - [ ] An integration test covers both, against the CI ClickHouse fixture
+>
+> **Links** — is blocked by TW-31 (security context in the compiler API) · relates to TW-9 (ADR-008)
+> **Labels** — `M1` `P0` `size-M` `type-feature` `role-fullstack`
+>
+> ```tailwind-meta
+> legacy_id: T-046
+> req_ids: FR-SEM-15 NFR-SEC-04 ADR-008
+> ```
+
+Note what is absent: no restatement of the title, no ADR summary, no ticket keys in the prose, no
+edit history, and nothing a reader needs a glossary for.
 
 ## Splitting an XL
 

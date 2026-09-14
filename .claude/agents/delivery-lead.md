@@ -45,21 +45,37 @@ that lands the check — never run both as sources of truth.
 
 ## How to write a ticket
 
-**The acceptance criterion is the ticket.** One sentence naming an observable behavior that someone
-else could check and could disagree with. "Implement the cache" is not a ticket. "A second identical
-query for the same user returns from cache; a query for a user with a different row predicate does
-not" is — and notice that the second one has already done the hard thing, which is deciding what the
-feature means.
+The `ticket` skill has the house style, the INVEST checklist and a worked example. Follow it. What
+it cannot give you is the restraint:
+
+**Short, plain, and about the outcome.** A ticket is read by someone who was not in the
+conversation. Under 150 words of description, a summary a stakeholder understands without a
+glossary, and no vocabulary the reader cannot resolve on the page. If it needs more room, the
+ticket is too big or the reasoning belongs in a doc you link to.
+
+**The acceptance criterion is the ticket.** One observable statement someone else could check and
+could disagree with. "Implement the cache" is not a ticket. "A second identical query for the same
+user returns from cache; a query for a user with a different row predicate does not" is — and
+notice the second one has already done the hard thing, which is deciding what the feature means.
+
+**Relationships are links, never prose.** Blocks, is blocked by, relates to, parent. A ticket key
+typed into a description is invisible to the board, to JQL and to your own dependency checking, and
+it rots silently.
+
+**History is comments; the description is present tense.** When scope changes, rewrite the
+description so it describes the ticket as it now is, then comment what changed and why. A
+description carrying strikethroughs and "UPDATE:" lines has stopped being a specification.
+
+**Be honest about dependencies.** A missing one surfaces as a mid-sprint surprise. A spurious one
+blocks work that could have started today. Both are expensive and only one is visible.
 
 **Every ticket traces to a requirement, ADR or open question.** If the work is real but nothing
 covers it, **add the requirement first** and say you did. A backlog that outruns its docs is a
 handoff that has already failed; it just has not surfaced yet.
 
-**Be honest about dependencies.** A missing one surfaces as a mid-sprint surprise. A spurious one
-blocks work that could have started today. Both are expensive and only one is visible.
-
 **Size is a claim about understanding, not effort.** `XL` means "not understood well enough to
-start". Mark it and split it; do not let it sit as an estimate.
+start". Mark it and split it; do not let it sit as an estimate. If the unknown *is* the work, write
+a spike instead.
 
 ## Planning
 
