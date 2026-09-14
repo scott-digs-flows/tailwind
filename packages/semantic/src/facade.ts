@@ -12,12 +12,33 @@ export interface CompiledQuery {
   engineQuery: Record<string, unknown>;
   /** Which view the query is scoped to -- dashboards may reference views only (FR-SEM-02). */
   view: string;
+  /** The FR-ADM-03 row cap applied to this query. The engine is asked for one more. */
+  rowLimit: number;
 }
+
+/**
+ * FR-ADM-03. The default result-set cap.
+ *
+ * Named rather than inline so the number appears once and a caller can report it in
+ * the `row_limit_reached` notice instead of restating a magic constant.
+ */
+export const DEFAULT_ROW_LIMIT = 10000;
 
 export interface QueryResult {
   rows: Record<string, unknown>[];
   sql: string;
   asOf: string | undefined;
+  /**
+   * True when the result hit the FR-ADM-03 cap and rows were dropped.
+   *
+   * The cap is deliberate; a cap you cannot detect is not. Without this, "revenue by
+   * customer" silently becomes "revenue by the first 10,000 customers" and renders as
+   * a complete chart -- a confident chart with a wrong number, which is the failure
+   * this product exists to prevent.
+   */
+  truncated: boolean;
+  /** The cap that was applied, so a caller can say what the limit was. */
+  rowLimit: number;
 }
 
 /**
@@ -74,15 +95,17 @@ export function compile(query: SemanticQuery, ctx: SecurityContext): CompiledQue
     engineQuery['order'] = query.order.map((o) => [o.member, o.dir]);
   }
   // FR-ADM-03: a result-set cap exists from the first query rather than being added
-  // after something falls over.
-  engineQuery['limit'] = query.limit ?? 10000;
+  // after something falls over. We ask the engine for ONE row more than the cap so
+  // that hitting it is detectable; runQuery drops the extra row and reports it.
+  const rowLimit = query.limit ?? DEFAULT_ROW_LIMIT;
+  engineQuery['limit'] = rowLimit + 1;
 
   // The context is not yet a predicate source in the POC (the pilot area has no row
   // differences), but it is threaded here so the seam is real. Tenant is carried into
   // the engine as a JWT claim by the client.
   void ctx;
 
-  return { engineQuery, view: query.view };
+  return { engineQuery, view: query.view, rowLimit };
 }
 
 /** Compile, then execute. The only path from a spec to a number. */
@@ -91,12 +114,15 @@ export async function runQuery(
   query: SemanticQuery,
   ctx: SecurityContext,
 ): Promise<QueryResult> {
-  const { engineQuery } = compile(query, ctx);
+  const { engineQuery, rowLimit } = compile(query, ctx);
   const [result, sql]: [CubeResultSet, string] = await Promise.all([
     cubeLoad(opts, engineQuery, ctx),
     // FR-CON-02: the generated SQL is always available, so "how is this calculated?"
     // is answerable for every chart rather than being a debugging affordance.
     cubeSql(opts, engineQuery, ctx).catch(() => ''),
   ]);
-  return { rows: result.data, sql, asOf: result.lastRefreshTime };
+  // The extra row is a probe, never data: drop it before anyone can plot it.
+  const truncated = result.data.length > rowLimit;
+  const rows = truncated ? result.data.slice(0, rowLimit) : result.data;
+  return { rows, sql, asOf: result.lastRefreshTime, truncated, rowLimit };
 }

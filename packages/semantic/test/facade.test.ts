@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compile, pocSystemContext, securityContextDigest, resolveSecurityContext } from '../src/index.ts';
+import {
+  compile,
+  pocSystemContext,
+  securityContextDigest,
+  resolveSecurityContext,
+  DEFAULT_ROW_LIMIT,
+} from '../src/index.ts';
 
 const ctx = pocSystemContext();
 
@@ -37,8 +43,21 @@ test('a member outside the view is refused — cubes are private (FR-SEM-02)', (
 });
 
 test('a row cap is always applied (FR-ADM-03)', () => {
-  const { engineQuery } = compile({ view: 'sales', metrics: ['sales.revenue'] }, ctx);
-  assert.equal(engineQuery['limit'], 10000);
+  const { engineQuery, rowLimit } = compile({ view: 'sales', metrics: ['sales.revenue'] }, ctx);
+  assert.equal(rowLimit, DEFAULT_ROW_LIMIT);
+  // One MORE than the cap is requested on purpose: it is the probe that makes hitting
+  // the cap detectable. Without it a truncated result is indistinguishable from a
+  // complete one, and renders as a confident chart with a wrong number.
+  assert.equal(engineQuery['limit'], DEFAULT_ROW_LIMIT + 1);
+});
+
+test('an explicit limit is still probed by one (FR-ADM-03)', () => {
+  const { engineQuery, rowLimit } = compile(
+    { view: 'sales', metrics: ['sales.revenue'], limit: 50 },
+    ctx,
+  );
+  assert.equal(rowLimit, 50);
+  assert.equal(engineQuery['limit'], 51);
 });
 
 test('the security context cannot be omitted, at compile time or run time (FR-SEM-14)', () => {

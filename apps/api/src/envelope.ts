@@ -7,6 +7,30 @@ export type FreshnessClass = 'batch' | 'standard' | 'operational';
 export type CacheOutcome = 'hit' | 'miss' | 'bypass';
 
 /**
+ * ADR-006 amendment (2026-09-14). The envelope is the ONLY channel for degradation.
+ *
+ * A closed enum on purpose: a free-text warning is a warning each component invents
+ * its own way of rendering, and the one that forgets renders a clean chart over a
+ * degraded result. Severity >= 'warn' MUST be rendered by any surface showing the
+ * data -- including the headless renderer, or a CI screenshot on a PR is a cleaner
+ * picture than the user's, and the evidence pipeline lies in the product's favour.
+ */
+export type NoticeCode =
+  | 'row_limit_reached'
+  | 'served_stale'
+  | 'partial_failure'
+  | 'empty_by_policy'
+  | 'query_timeout'
+  | 'cache_degraded';
+
+export interface Notice {
+  code: NoticeCode;
+  severity: 'info' | 'warn' | 'error';
+  /** Plain language, for a person looking at a chart. Not an error code. */
+  message: string;
+}
+
+/**
  * ADR-006 D3. These fields are not decoration:
  *   as_of + freshness      -> FR-CON-03, FR-FRESH-03
  *   bundle_version         -> what makes rollback observable (FR-GOV-08)
@@ -32,6 +56,8 @@ export interface EnvelopeMeta {
   cache: CacheOutcome;
   trace_id: string;
   security_context_digest: string;
+  /** Empty array means "nothing to say". Never null, never absent. */
+  notices: Notice[];
 }
 
 export interface Envelope<T> {
@@ -55,6 +81,7 @@ export function envelope<T>(
     stale?: boolean;
     cache?: CacheOutcome;
     asOf?: string;
+    notices?: Notice[];
   },
 ): Envelope<T> {
   // One derivation, shared by every endpoint (FR-FRESH-02/03).
@@ -72,6 +99,7 @@ export function envelope<T>(
       cache: opts.cache ?? 'bypass',
       trace_id: opts.traceId,
       security_context_digest: securityContextDigest(ctx),
+      notices: opts.notices ?? [],
     },
     data,
   };

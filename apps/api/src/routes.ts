@@ -71,6 +71,20 @@ export function registerRoutes(app: FastifyInstance): void {
         );
         return envelope({ rows: result.rows, sql: result.sql }, ctx, {
           traceId: req.id,
+          // FR-ADM-03's cap is deliberate; hiding that it fired is not. A truncated
+          // result that renders as a complete chart is the exact failure this product
+          // exists to prevent.
+          notices: result.truncated
+            ? [
+                {
+                  code: 'row_limit_reached' as const,
+                  severity: 'warn' as const,
+                  message:
+                    `Showing the first ${result.rowLimit.toLocaleString()} rows. ` +
+                    `There are more -- narrow the filters or group by something coarser.`,
+                },
+              ]
+            : [],
           // Our cache is T-025/M1. Saying "bypass" is honest; claiming a miss would not be.
           cache: 'bypass',
           freshnessClass: req.body.freshness ?? 'standard',
