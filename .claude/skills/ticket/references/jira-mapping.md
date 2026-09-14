@@ -13,16 +13,26 @@ Everything in this file was read off the live site on 2026-09-14. Re-verify with
 | Project style | **Team-managed** (`simplified: true`) — this is why the mapping below looks the way it does |
 | Issue types | Epic `10007` · Story `10008` · Task `10010` · Bug `10009` · Subtask `10006` |
 | Link types | Blocks `10000` · Cloners `10001` · Duplicate `10002` · Relates `10003` |
+| Statuses | **Only three**: To Do (transition `11`) · In Progress (`21`) · Done (`31`). Transition ids are global. |
+| Epic keys | E-00 `TW-1` · E-01 `TW-3` · E-02 `TW-4` · E-03 `TW-5` · E-04 `TW-6` · E-05 `TW-7` · E-06 `TW-8` · E-07 `TW-9` · E-08 `TW-10` · E-09 `TW-11` · E-10 `TW-12` · E-11 `TW-13` |
 
-## The gotcha that shapes everything
+## Gotchas, all four confirmed against the live site
 
-A team-managed project's Story screen has **no `priority`, no `components`, no `fixVersions`,
-no `versions`** field. They are not hidden, they do not exist — `additional_fields: {"priority":
-{"name":"High"}}` fails, and `fixVersions` has nothing to point at. So the two axes you would
-reach for first, **priority and milestone, are labels.**
+**1. The create-meta lies about `priority`.** `getJiraIssueTypeMetaWithFields` for Story does not
+list `priority`, `components`, `fixVersions` or `versions`. But `priority` **is real and is
+settable** — it defaults to Medium and accepts `additional_fields: {"priority": {"name":
+"Highest"}}`. It was verified by writing to it, not by reading the metadata. `components`,
+`fixVersions` and `versions` genuinely do not exist, so **milestone stays a label**.
 
-Do not "fix" this by enabling priority in project settings without saying so. The encoding below
-is what the CI check parses; changing it is a schema migration, not a preference.
+**2. Markdown task-list syntax is silently swallowed.** `- [ ] criterion` renders as
+`<li>criterion</li>` — the checkbox is gone, with no error and no warning. **Use plain `-`
+bullets** for acceptance criteria. (Anything needing real checkboxes has to be written as ADF.)
+
+**3. `&` in a summary is HTML-escaped** and stored literally as `&amp;`. Use "and", or check the
+value that comes back.
+
+**4. There are only three statuses.** No In Review column exists, so `review` is In Progress plus
+a `review` label until someone adds the column.
 
 ## Ticket → JIRA
 
@@ -31,8 +41,8 @@ is what the CI check parses; changing it is a schema migration, not a preference
 | `id` (`T-###`) | `legacy_id` in the meta block. **Never lost** — ADRs, commit messages and `docs/adr/*` cite `T-014` and must keep resolving. |
 | `title` | `summary`, imperative, one line |
 | `epic` (`E-##`) | `parent` → the Epic issue for that `E-##` |
-| `milestone` (`M0`–`M4`) | label `M0` … `M4` |
-| `priority` (`P0`–`P3`) | label `P0` … `P3` |
+| `milestone` (`M0`–`M4`) | label `M0` … `M4` (no `fixVersions` field exists) |
+| `priority` (`P0`–`P3`) | **native `priority` field**: P0→Highest, P1→High, P2→Medium, P3→Low |
 | `size` (`S`/`M`/`L`/`XL`) | label `size-S` … `size-XL` |
 | `type` | label `type-feature` · `type-spike` · `type-adr` · `type-infra` · `type-discovery` · `type-chore` |
 | `owner_role` | label `role-product` · `role-architect` · `role-fullstack` · `role-data-team` · `role-security` |
@@ -101,6 +111,10 @@ surface the block, you do not park the ticket somewhere nobody looks.
 
 `customfield_10016` Story point estimate · `customfield_10020` Sprint · `customfield_10021` Flagged
 · `customfield_10015` Start date · `customfield_10019` Rank.
+
+Native `priority` is authoritative for P0–P3; do **not** also carry a `P0` label, or the two will
+disagree and nobody will know which to believe. The project's own vocabulary still applies —
+"Highest" means *P0: blocks the milestone*.
 
 Story points are **optional and not authoritative**. `size` is a label because `XL` is a flag
 meaning "not understood well enough to start", not an estimate — putting it in a numeric field

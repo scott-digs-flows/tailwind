@@ -65,8 +65,8 @@ One or two plain sentences: what will be true when this is done, and why anyone 
 No jargon the reader cannot resolve from this page alone.
 
 ## Acceptance
-- [ ] An observable statement someone else could check
-- [ ] Another, if genuinely separate
+- An observable statement someone else could check
+- Another, if genuinely separate
 ```
 
 Add a `## Notes` section **only** for something non-obvious that would otherwise cost the
@@ -153,9 +153,13 @@ plainly why it is acceptable here.
 not exist. If the work is real but no requirement covers it, **add the requirement first** — the
 docs are the contract with the architect, and a ticket that outruns them is how a handoff fails.
 
-**Labels are the schema.** Every ticket gets its milestone, priority, `size-*`, `type-*` and
-`role-*` labels. Missing labels are not cosmetic — they are how the backlog is queried, and an
-unlabelled ticket is invisible to every planning question below.
+**Labels are the schema.** Every ticket gets its milestone, `size-*`, `type-*` and `role-*`
+labels; priority is the **native field** (P0→Highest … P3→Low). Missing labels are not cosmetic —
+they are how the backlog is queried, and an unlabelled ticket is invisible to every planning
+question below.
+
+**Acceptance criteria use plain `-` bullets.** JIRA silently swallows `- [ ]` task-list syntax,
+leaving the text with no checkbox and no error.
 
 ## Worked example
 
@@ -167,12 +171,12 @@ unlabelled ticket is invisible to every planning question below.
 > asking, so that never happens.
 >
 > **Acceptance**
-> - [ ] Two users with different row entitlements never receive each other's cached rows
-> - [ ] A repeat query by the *same* user still returns from cache
-> - [ ] An integration test covers both, against the CI ClickHouse fixture
+> - Two users with different row entitlements never receive each other's cached rows
+> - A repeat query by the *same* user still returns from cache
+> - An integration test covers both, against the CI ClickHouse fixture
 >
 > **Links** — is blocked by TW-31 (security context in the compiler API) · relates to TW-9 (ADR-008)
-> **Labels** — `M1` `P0` `size-M` `type-feature` `role-fullstack`
+> **Priority** — Highest (P0) · **Labels** — `M1` `size-M` `type-feature` `role-fullstack`
 >
 > ```tailwind-meta
 > legacy_id: T-046
@@ -227,5 +231,12 @@ before putting new work in the POC — the default answer for a production conce
 
 ## After any edit
 
-While the CSV is still authoritative: `python3 scripts/validate_docs.py`. It is a gate, not a
-suggestion. After the port: `python3 scripts/validate_jira.py`.
+Run `pnpm validate:backlog` (`scripts/validate_jira.py`). It checks traceability, the label schema,
+epic parentage, dependency cycles, requirement coverage, nothing In Progress behind an open blocker,
+and no started XL.
+
+**Nothing runs this for you.** It is deliberately not a CI gate — the backlog lives in JIRA, so
+gating merges on it would block code changes for reasons unrelated to them. That makes running it
+part of the job rather than something a build catches. Run it after any batch of backlog edits, and
+always after changing `docs/product/01-requirements.md`: a new Must with no ticket is the failure it
+catches most often, and it is invisible until someone goes looking.

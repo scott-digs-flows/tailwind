@@ -87,14 +87,12 @@ Four skills carry the rules that must not live in someone's memory:
 
 ## Working in this repo
 
-**Backlog: migrating to JIRA project `TW`** (`scottdigsflows.atlassian.net`). Conventions, field
-encoding and the migration runbook live in the `ticket` skill.
+**Backlog: JIRA project `TW`** (`scottdigsflows.atlassian.net`) — 12 epics, 137 tickets. Conventions
+and field encoding live in the `ticket` skill. `TICKETS.csv` is **retired**; it and JIRA were never
+both authoritative, which is the one rule `05-ways-of-working.md` insists on.
 
-**Until `scripts/validate_jira.py` lands in CI, [`TICKETS.csv`](TICKETS.csv) is still authoritative
-and JIRA is a rehearsal.** The CSV is retired in the same PR that lands that check — never run both
-as sources of truth. The reasoning, and the fourteen invariants that would otherwise vanish
-silently, are in [05-ways-of-working.md](docs/product/05-ways-of-working.md). Never renumber or
-reuse a ticket ID; `T-###` survives the migration as `legacy_id` because ADRs and commits cite it.
+Never renumber or reuse a ticket ID. `T-###` survives as `legacy_id` because ADRs and commit
+messages cite it — look one up with `project = TW AND text ~ "T-014"`.
 
 **Decisions:** [`docs/adr/`](docs/adr/) — numbers assigned in `02-architecture-brief.md §4`.
 
@@ -120,15 +118,22 @@ Cube compiles the model **once at startup** (`CUBEJS_DEV_MODE=false`), so a chan
 published on merge, not hot-reloaded. ADR-007 / T-029 replaces the restart with an immutable
 per-merge bundle.
 
-**Validate before committing:**
+**Check the backlog's health — deliberately, not in CI:**
 
 ```bash
-python3 scripts/validate_docs.py
+pnpm validate:backlog                                 # needs JIRA_BASE_URL / JIRA_EMAIL / JIRA_API_TOKEN
+python3 scripts/validate_jira.py --offline dump.json  # same checks over a saved dump
 ```
 
-Checks ticket schema, dependency integrity, cycles, and that every Must/Should requirement has a
-ticket. It is a gate, not a suggestion — mechanical rules belong in a check rather than in
-someone's memory. That is the same argument the product itself makes.
+Checks the label schema, epic parentage, traceability, dependency integrity, **cycles**, that every
+Must/Should requirement has a ticket, that nothing is In Progress behind an open blocker, and that
+no XL has started. It still **fails closed** — no credentials, no pass — so it can be scripted.
+
+**This is not a CI gate and should not become one.** It was one while the backlog was a file in this
+repo, where a commit could break it. Now that tickets live in JIRA, gating merges on it would mean a
+bugfix cannot land because a token expired. Run it when you change `docs/product/01-requirements.md`
+(a new Must with no ticket is the failure it catches most often) and periodically on the backlog
+itself. The `delivery-lead` agent owns that routine.
 
 **Scope changes update the requirement doc first, then the ticket.** The docs are the contract
 with the architect; drifting tickets away from them silently is how handoffs fail.

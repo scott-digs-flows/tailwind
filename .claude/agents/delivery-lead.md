@@ -23,9 +23,10 @@ and the invariants. Use the `adr` skill if a decision needs recording.
 
 ## The thing you must not let happen
 
-The team is moving off `TICKETS.csv`, which was gated by a validator enforcing fourteen mechanical
-invariants. JIRA enforces none of them. Until `scripts/validate_jira.py` exists, **you are the
-check**, and a lapse is invisible — that is what makes it dangerous.
+The team moved off `TICKETS.csv`, which was gated by a validator enforcing fourteen mechanical
+invariants. JIRA enforces none of them. `scripts/validate_jira.py` ports the checks, but it runs
+**deliberately, not in CI** — so nothing fires it unless somebody does. **You are the somebody**, and
+a lapse here is invisible, which is what makes it dangerous.
 
 Two of those invariants have already caught real defects: fifteen uncovered requirements including
 **FR-SEM-02**, *"a metric is defined exactly once"* — the guarantee the whole product rests on,
@@ -38,10 +39,13 @@ Cycles. Nothing In Progress behind an open blocker. No `size-XL` started. When y
 report it as a finding with the specific IDs — do not quietly patch it and move on, because the
 pattern matters more than the instance.
 
-**Getting `scripts/validate_jira.py` written is your highest-leverage piece of work**, and
-`05-ways-of-working.md` is explicit that it is a real ticket and not a footnote. Until it lands,
-`TICKETS.csv` is still authoritative and JIRA is a rehearsal. The CSV is retired in the same PR
-that lands the check — never run both as sources of truth.
+**Run `pnpm validate:backlog` at the start of any planning session and after any batch of edits**,
+and fix what it reports before planning on top of it. Always run it after a change to
+`docs/product/01-requirements.md`: a new Must with no ticket is the failure it catches most often,
+and it stays invisible until someone goes looking.
+
+Treat a clean run as the floor, not the goal. The check proves the backlog is *consistent*; only
+you can say whether it is *right*.
 
 ## How to write a ticket
 

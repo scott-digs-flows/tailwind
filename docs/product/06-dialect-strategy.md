@@ -213,7 +213,7 @@ should fall out of CI rather than out of a meeting:
 - **Beta** — the smoke subset passes in CI. Nothing else is promised.
 - **Experimental** — the engine claims it; we run nothing.
 
-This is the same argument the repo already makes about `validate_docs.py`: mechanical rules belong
+This is the same argument the repo already makes about `validate_jira.py`: mechanical rules belong
 in a check, not in someone's memory. It also removes the political failure mode where "Certified"
 is decided by whoever is loudest in the room. **Consequence for FR-SEM-12:** the tier is a derived
 property, so the requirement should say the tier is *published and mechanically derived from the
