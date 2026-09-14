@@ -84,7 +84,7 @@ jobs:
       # The base images are pinned in versions.env, so a vulnerability here is a
       # deliberate version bump, not a surprise.
       - name: Scan base images
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: node:${{ env.NODE_VERSION }}-alpine
@@ -93,7 +93,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Scan the engine image
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: cubejs/cube:${{ env.CUBE_VERSION }}
@@ -191,7 +191,7 @@ jobs:
         run: |
           docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml up -d
           for i in $(seq 1 90); do
-            curl -sf http://localhost:7400/readyz >/dev/null 2>&1 && break
+            curl -sf "http://localhost:${CUBE_CI_PORT}/readyz" >/dev/null 2>&1 && break
             sleep 2
           done
 
@@ -199,11 +199,21 @@ jobs:
       # readiness is established with a real query before the suite runs.
       - name: Wait for the engine to actually serve a query
         run: |
+          # The conformance stack publishes Cube on CUBE_CI_PORT so it can run beside
+          # the dev stack. ping.ts defaults to the DEV port, so the URL must be passed
+          # explicitly here -- conformance.sh sets it for itself, this step does not
+          # inherit that.
+          export CUBE_URL="http://localhost:${CUBE_CI_PORT}/cubejs-api/v1"
           for i in $(seq 1 60); do
             node packages/semantic/test/manual/ping.ts >/dev/null 2>&1 && exit 0
             sleep 2
           done
-          echo "engine never served a query" >&2; exit 1
+          # A five-minute silent timeout tells you nothing. The engine's own log is the
+          # only thing that distinguishes "slow" from "the model did not compile".
+          echo "engine never served a query" >&2
+          docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml logs --tail 120 cube >&2
+          node packages/semantic/test/manual/ping.ts >&2 || true
+          exit 1
 
       - name: Conformance suite and negative control
         run: ./scripts/conformance.sh

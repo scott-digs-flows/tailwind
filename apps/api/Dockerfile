@@ -1,4 +1,4 @@
-ARG NODE_VERSION=24.19.0
+ARG NODE_VERSION=24.21.0
 
 # The API runs from TypeScript source: Node 24 strips types natively, and the workspace
 # packages export .ts directly (no build step, one resolution story). tsc stays as the
