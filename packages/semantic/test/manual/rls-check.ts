@@ -7,7 +7,6 @@
  */
 import { runQuery, resolveSecurityContext, securityContextDigest, type SecurityContext } from '../../src/index.ts';
 
-const opts = { url: process.env['CUBE_URL'] ?? 'http://localhost:7400/cubejs-api/v1', apiSecret: 'dev-only-not-a-secret' };
 const query = { view: 'sales', metrics: ['sales.reseller_sales'], dimensions: ['sales.territory_group'] };
 
 const ctxFor = (subject: string, groups: string[]): SecurityContext =>
@@ -19,7 +18,7 @@ type Outcome = { kind: 'rows'; regions: string[] } | { kind: 'refused'; why: str
 
 async function attempt(ctx: SecurityContext): Promise<Outcome> {
   try {
-    const r = await runQuery(opts, { ...query }, ctx);
+    const r = await runQuery(ctx, { ...query });
     return { kind: 'rows', regions: r.rows.map((x) => String(x['sales.territory_group'])).sort() };
   } catch (e: unknown) {
     return { kind: 'refused', why: e instanceof Error ? e.message.slice(0, 60) : String(e) };

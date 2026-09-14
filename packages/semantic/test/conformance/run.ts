@@ -6,13 +6,12 @@
  *   node packages/semantic/test/conformance/run.ts [--negative-control]
  */
 import { readFileSync } from 'node:fs';
-import { runQuery, pocSystemContext, type CubeClientOptions } from '../../src/index.ts';
+import { runQuery, pocSystemContext } from '../../src/index.ts';
 import { CASES } from './cases.ts';
 
-const opts: CubeClientOptions = {
-  url: process.env['CUBE_URL'] ?? 'http://localhost:7400/cubejs-api/v1',
-  apiSecret: process.env['CUBEJS_API_SECRET'] ?? 'dev-only-not-a-secret',
-};
+// The engine's address is the facade's business, not the runner's (TW-170): both read
+// CUBE_URL, so conformance.sh pointing at the fixture stack still lands where it should.
+const ENGINE_URL = process.env['CUBE_URL'] ?? 'http://localhost:7400/cubejs-api/v1';
 /**
  * The dialect is read from the ENGINE, not from an env var. A conformance report that
  * names the wrong dialect is worse than no report -- the tier it computes would be
@@ -20,7 +19,7 @@ const opts: CubeClientOptions = {
  */
 async function detectDialect(): Promise<string> {
   try {
-    const res = await fetch(`${opts.url.replace(/\/v1$/, '')}/v1/meta`, {
+    const res = await fetch(`${ENGINE_URL.replace(/\/v1$/, '')}/v1/meta`, {
       headers: { Authorization: 'x' },
     });
     void res;
@@ -42,7 +41,7 @@ const failures: string[] = [];
 for (const c of CASES) {
   let actual: unknown;
   try {
-    actual = c.actual((await runQuery(opts, c.query, ctx)).rows);
+    actual = c.actual((await runQuery(ctx, c.query)).rows);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     // A join-path refusal is a legitimate ENGINE ANSWER for an ambiguous query, not a

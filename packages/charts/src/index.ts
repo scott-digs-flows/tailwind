@@ -23,7 +23,12 @@ const num = (v: unknown): number => {
 
 export const asString = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
 
-/** Cube returns `view.member`; a time dimension at a grain returns `view.member.month`. */
+/**
+ * Result columns are keyed `view.member`, and a time dimension at a grain adds the
+ * grain: `view.member.month`. That is Tailwind's own member naming (FR-SEM-02 -- a
+ * chart may reference a view and nothing else), not a detail of whichever engine is
+ * behind the facade, so it is stated here as the convention it is.
+ */
 function seriesKeys(chart: DashboardChart): { category: string | null; metrics: string[] } {
   const q = chart.query;
   const timeKey = q.time_dimensions?.[0]

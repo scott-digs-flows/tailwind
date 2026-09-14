@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test test/*.test.ts"
+    "test": "node --test test/*.test.ts",
+    "lint:boundary": "node tools/boundary-lint-cli.ts"
   },
   "dependencies": { "@tailwind/spec": "workspace:*" },
   "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.9.3" }

@@ -14,6 +14,11 @@ services:
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       TAILWIND_BUNDLE_VERSION: "${TAILWIND_BUNDLE_VERSION:-dev}"
       CUBE_URL: "http://cube:4000/cubejs-api/v1"
+      # Both sides of the engine's JWT read the SAME variable. They did not before:
+      # the cube service took ${CUBEJS_API_SECRET} while the API fell back to the dev
+      # default in code, so setting a real secret authenticated nothing and broke every
+      # query. Now that the facade owns the credential (TW-170) it is one name, twice.
+      CUBEJS_API_SECRET: "${CUBEJS_API_SECRET:-dev-only-not-a-secret}"
       # The app connects as a NON-superuser so RLS actually applies (ADR-014).
       DATABASE_URL: "postgres://tailwind_app:tailwind_app@postgres:5432/tailwind"
       DATABASE_ADMIN_URL: "postgres://tailwind:tailwind@postgres:5432/tailwind"

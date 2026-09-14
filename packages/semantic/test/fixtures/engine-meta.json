@@ -1,0 +1,576 @@
+{
+  "cubes": [
+    {
+      "name": "sales",
+      "type": "view",
+      "title": "Sales",
+      "isVisible": true,
+      "public": true,
+      "description": "Certified AdventureWorks sales surface. The only thing dashboards may reference.",
+      "meta": {
+        "tailwind": {
+          "spec_version": 1,
+          "owner": "data-team",
+          "description": "Certified sales surface for dashboards.",
+          "certification": "certified",
+          "last_reviewed": "2026-08-13"
+        }
+      },
+      "measures": [
+        {
+          "name": "sales.reseller_sales",
+          "title": "Sales Reseller Sales",
+          "shortTitle": "Reseller Sales",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "sum",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "fact_reseller_sales.reseller_sales",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Reseller sales net sales amount.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.reseller_order_quantity",
+          "title": "Sales Reseller Order Quantity",
+          "shortTitle": "Reseller Order Quantity",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "sum",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "fact_reseller_sales.reseller_order_quantity",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Reseller sales units ordered.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.reseller_line_count",
+          "title": "Sales Reseller Line Count",
+          "shortTitle": "Reseller Line Count",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "count",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "fact_reseller_sales.reseller_line_count",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Reseller sales order lines.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.order_freight",
+          "title": "Sales Order Freight",
+          "shortTitle": "Order Freight",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "sum",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "reseller_order.order_freight",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Freight charged ONCE per order. Summing it across order lines is the fan-out trap.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.order_count",
+          "title": "Sales Order Count",
+          "shortTitle": "Order Count",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "count",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "reseller_order.order_count",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Number of reseller orders.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.internet_sales",
+          "title": "Sales Internet Sales",
+          "shortTitle": "Internet Sales",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "sum",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "fact_internet_sales.internet_sales",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Internet sales net sales amount.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.internet_line_count",
+          "title": "Sales Internet Line Count",
+          "shortTitle": "Internet Line Count",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "count",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "fact_internet_sales.internet_line_count",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Internet sales order lines.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.reseller_count",
+          "title": "Sales Reseller Count",
+          "shortTitle": "Reseller Count",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "count",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "dim_reseller.reseller_count",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Number of resellers.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.product_count",
+          "title": "Sales Product Count",
+          "shortTitle": "Product Count",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "count",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "dim_product.product_count",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Number of products.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.product_standard_cost",
+          "title": "Sales Product Standard Cost",
+          "shortTitle": "Product Standard Cost",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "sum",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "dim_product.product_standard_cost",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Standard cost, held ONCE per product. Summing it across sales lines is the fan-out trap.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        },
+        {
+          "name": "sales.territory_count",
+          "title": "Sales Territory Count",
+          "shortTitle": "Territory Count",
+          "formatDescription": {
+            "name": "number",
+            "specifier": ",.2~f"
+          },
+          "cumulativeTotal": false,
+          "cumulative": false,
+          "type": "number",
+          "aggType": "count",
+          "drillMembers": [],
+          "drillMembersGrouped": {
+            "measures": [],
+            "dimensions": []
+          },
+          "aliasMember": "dim_sales_territory.territory_count",
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Number of territories.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "sales.reseller_order_date",
+          "title": "Sales Reseller Order Date",
+          "type": "time",
+          "shortTitle": "Reseller Order Date",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Reseller sales order date.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "fact_reseller_sales.reseller_order_date"
+        },
+        {
+          "name": "sales.order_placed_at",
+          "title": "Sales Order Placed at",
+          "type": "time",
+          "shortTitle": "Order Placed at",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "When the order was placed.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "reseller_order.order_placed_at"
+        },
+        {
+          "name": "sales.internet_order_date",
+          "title": "Sales Internet Order Date",
+          "type": "time",
+          "shortTitle": "Internet Order Date",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Internet sales order date.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "fact_internet_sales.internet_order_date"
+        },
+        {
+          "name": "sales.reseller_name",
+          "title": "Sales Reseller Name",
+          "type": "string",
+          "shortTitle": "Reseller Name",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Reseller trading name.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_reseller.reseller_name"
+        },
+        {
+          "name": "sales.business_type",
+          "title": "Sales Business Type",
+          "type": "string",
+          "shortTitle": "Business Type",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Reseller business type, e.g. Value Added Reseller or Warehouse.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_reseller.business_type"
+        },
+        {
+          "name": "sales.product_name",
+          "title": "Sales Product Name",
+          "type": "string",
+          "shortTitle": "Product Name",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Product name.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_product.product_name"
+        },
+        {
+          "name": "sales.color",
+          "title": "Sales Color",
+          "type": "string",
+          "shortTitle": "Color",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Product colour.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_product.color"
+        },
+        {
+          "name": "sales.product_line",
+          "title": "Sales Product Line",
+          "type": "string",
+          "shortTitle": "Product Line",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Product line code.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_product.product_line"
+        },
+        {
+          "name": "sales.model_name",
+          "title": "Sales Model Name",
+          "type": "string",
+          "shortTitle": "Model Name",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Product model name, e.g. Road-650. Groups colour and size variants.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_product.model_name"
+        },
+        {
+          "name": "sales.region",
+          "title": "Sales Region",
+          "type": "string",
+          "shortTitle": "Region",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Territory region.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_sales_territory.region"
+        },
+        {
+          "name": "sales.country",
+          "title": "Sales Country",
+          "type": "string",
+          "shortTitle": "Country",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Territory country.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_sales_territory.country"
+        },
+        {
+          "name": "sales.territory_group",
+          "title": "Sales Territory Group",
+          "type": "string",
+          "shortTitle": "Territory Group",
+          "suggestFilterValues": true,
+          "meta": {
+            "tailwind": {
+              "spec_version": 1,
+              "owner": "data-team",
+              "description": "Territory group.",
+              "certification": "certified"
+            }
+          },
+          "isVisible": true,
+          "public": true,
+          "primaryKey": false,
+          "aliasMember": "dim_sales_territory.territory_group"
+        }
+      ],
+      "segments": [],
+      "hierarchies": [],
+      "folders": [],
+      "nestedFolders": []
+    }
+  ]
+}

@@ -5,5 +5,5 @@
     "allowImportingTsExtensions": true, "rewriteRelativeImportExtensions": true,
     "outDir": "dist", "rootDir": ".", "types": ["node"]
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "test/**/*", "tools/**/*"]
 }
