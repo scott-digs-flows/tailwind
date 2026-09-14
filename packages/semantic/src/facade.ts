@@ -1,5 +1,12 @@
-import type { ChartQuery, TimeDimensionRef } from '@tailwind/spec';
+import {
+  isFreshnessClass,
+  type ChartQuery,
+  type FreshnessClass,
+  type TimeDimensionRef,
+} from '@tailwind/spec';
 import { cubeLoad, cubeSql, type EngineResultSet } from './cube-client.ts';
+import { bundleVersion } from './engine-config.ts';
+import { cacheKeyFor, cacheLookupFor, type CacheLookup, type CacheOutcome } from './cache.ts';
 import type { SecurityContext } from './security-context.ts';
 
 export type TimeDimension = TimeDimensionRef;
@@ -59,6 +66,23 @@ export interface QueryResult {
    * second round trip to the engine for a string differing by one character.
    */
   engineLimit: number;
+  /**
+   * The class this query actually EXECUTED under.
+   *
+   * Returned rather than left to the caller to remember, because the envelope's
+   * `freshness.class` is a claim about how the number was produced. A caller that
+   * labels the response from its own variable can drift from what the facade was
+   * given; a caller that labels it from here cannot.
+   */
+  freshness: FreshnessClass;
+  /** `bypass` until TW-44 installs a store -- honest, where `miss` would imply one. */
+  cache: CacheOutcome;
+  /**
+   * The key this execution addressed and the policy it ran under, exposed so a test
+   * can assert on cache identity without a store existing (and so T-117's two-user
+   * check can assert two contexts produce two keys).
+   */
+  cacheLookup: CacheLookup;
 }
 
 /**
@@ -169,16 +193,75 @@ export function applyRowLimit(
   return { rows: data.length > rowLimit ? data.slice(0, rowLimit) : data, truncated };
 }
 
+export interface PreparedQuery {
+  compiled: CompiledQuery;
+  cacheLookup: CacheLookup;
+}
+
 /**
- * Compile, then execute. The only path from a spec to a number.
+ * Everything decided before a byte leaves the process: what the engine will be asked,
+ * and under what identity and policy the answer may be reused.
  *
- * The security context comes FIRST, matching ADR-003 D4's `compileAndExecute(ctx, ...)`.
- * There is no transport argument: the facade owns where the engine is (engine-config.ts),
- * so there is no signature by which a caller could point this at a different engine or
- * supply its own credential (TW-170).
+ * Split out of `runQuery` for two reasons. A cache must be able to compute its key
+ * *before* deciding to execute, so this is the half TW-44 calls first. And it makes the
+ * property this ticket exists to guarantee testable without a warehouse: the assertion
+ * that a `batch` and a `standard` request address the same entry runs against the real
+ * derivation rather than a copy of it in a test.
  */
-export async function runQuery(ctx: SecurityContext, query: SemanticQuery): Promise<QueryResult> {
-  const { engineQuery, rowLimit, reportTruncation, engineLimit } = compile(query, ctx);
+export function prepareQuery(
+  ctx: SecurityContext,
+  query: SemanticQuery,
+  freshness: FreshnessClass,
+): PreparedQuery {
+  // Defence in depth, exactly as `compile` does for the context: the branded union
+  // stops TypeScript callers, but the AI path and a request body arrive as plain
+  // strings. A class we do not recognise is refused rather than quietly mapped onto
+  // `standard` -- guessing a cache policy is how an `operational` chart gets served
+  // 24-hour-old numbers with nothing in the response admitting it.
+  if (!isFreshnessClass(freshness)) {
+    throw new Error(`a query requires a FreshnessClass, got '${String(freshness)}' (FR-FRESH-02)`);
+  }
+  const compiled = compile(query, ctx);
+  // The cache seam. The store is TW-44 and its topology is ADR-008; what exists now is
+  // the address (key) and the acceptance rule (policy), computed on every query so the
+  // day a store is installed it is wired to something already exercised rather than to
+  // a shape invented at that moment. The class is in the policy and nowhere near the
+  // key -- cache.ts says why that matters in both directions.
+  const key = cacheKeyFor(ctx, compiled.engineQuery, bundleVersion());
+  return { compiled, cacheLookup: cacheLookupFor(key, freshness) };
+}
+
+/**
+ * Compile, then execute. The only path from a spec to a number (binding constraint 2).
+ *
+ * ADR-006 D4's signature: `(ctx, query, freshness)`, three required parameters and no
+ * overload that omits any of them. Both of the governed inputs are positional and
+ * neither has a default, for the same reason:
+ *
+ * - **`ctx`** decides which ROWS the request may see (FR-SEM-14/15). Resolved per
+ *   request from the requesting user, never from the artifact's author.
+ * - **`freshness`** decides how OLD an answer may be (FR-FRESH-02). It is what the
+ *   cache reads its policy from -- so while it was only carried on the response, it was
+ *   a label on a number rather than an input to producing one, and ADR-008 would have
+ *   been written for a cache whose only caller could not tell it what policy to apply.
+ *   That is the defect this signature fixes.
+ *
+ * The class is a *governed* property of a reviewed spec, so a default here would be the
+ * same mistake in a quieter form: the caller that forgets gets `standard` and nobody
+ * finds out. Resolving it from the published artifact rather than the request body is
+ * TW-167, and `apps/api` still reads it from the body until that lands.
+ *
+ * Note what is NOT a parameter: transport options. The facade owns its own engine
+ * configuration (`engine-config.ts`), so no route module handles the engine's
+ * credentials and no caller can point one call at a different warehouse.
+ */
+export async function runQuery(
+  ctx: SecurityContext,
+  query: SemanticQuery,
+  freshness: FreshnessClass,
+): Promise<QueryResult> {
+  const { compiled, cacheLookup } = prepareQuery(ctx, query, freshness);
+  const { engineQuery, rowLimit, reportTruncation, engineLimit } = compiled;
   // The SQL shown to a user must describe the result they actually got. The probe row
   // is our business, not theirs: showing `LIMIT 10001` above 10,000 rows in the
   // "how is this calculated?" panel (FR-CON-02) undermines the one surface whose whole
@@ -195,5 +278,11 @@ export async function runQuery(ctx: SecurityContext, query: SemanticQuery): Prom
     asOf: result.lastRefreshTime,
     rowLimit,
     engineLimit,
+    freshness,
+    // `bypass`, not `miss`: a miss says a store looked and found nothing, which implies
+    // it then filled. No store exists, and claiming a miss would make TW-44's first
+    // hit-rate measurement read as an improvement over a number that was never real.
+    cache: 'bypass',
+    cacheLookup,
   };
 }

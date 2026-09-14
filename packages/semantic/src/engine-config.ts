@@ -1,6 +1,9 @@
 /**
- * Where the engine lives and how we authenticate to it. Internal to this package by
- * design: it is NOT re-exported from `index.ts`.
+ * Where the engine lives and how we authenticate to it. `engineEndpoint` is internal to
+ * this package by design and is NOT re-exported from `index.ts` -- it carries a
+ * credential. (`bundleVersion`, at the end of this file, IS exported: a published
+ * artifact version is not a secret, and the envelope and the cache key must read the
+ * same one.)
  *
  * This used to be assembled in `apps/api/src/routes.ts` and threaded in as the facade's
  * first argument. Nothing semantic leaked that way -- no caller ever saw an engine query
@@ -39,4 +42,18 @@ export function engineEndpoint(): EngineEndpoint {
     url: process.env['CUBE_URL'] ?? DEFAULT_URL,
     apiSecret: process.env['CUBEJS_API_SECRET'] ?? DEV_API_SECRET,
   };
+}
+
+/**
+ * The published spec version being served (FR-GOV-08).
+ *
+ * It lives here rather than in `apps/api` because two things must agree on it: the
+ * envelope's `bundle_version`, which is what makes a rollback observable, and the cache
+ * key, which is what makes a rollback *take effect*. If those two ever read different
+ * values, a cached result is served under a bundle version it was not computed for -- a
+ * stale number wearing a fresh label, which is the single failure mode the envelope
+ * exists to prevent. One reader, so they cannot drift.
+ */
+export function bundleVersion(): string {
+  return process.env['TAILWIND_BUNDLE_VERSION'] ?? 'dev';
 }

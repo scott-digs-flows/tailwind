@@ -10,6 +10,7 @@
  * exercises the metadata mapping against the live pinned engine. The unit test covers
  * the mapping against a recorded document; this covers the recording still being true.
  */
+import { DEFAULT_FRESHNESS } from '@tailwind/spec';
 import { describeCatalog, runQuery, pocSystemContext } from '../../src/index.ts';
 
 const ctx = pocSystemContext();
@@ -20,4 +21,4 @@ if (probe === undefined) {
   throw new Error(`engine exposes no metrics across ${views.length} view(s): the model did not compile`);
 }
 
-await runQuery(ctx, { view: probe.view, metrics: [probe.member] });
+await runQuery(ctx, { view: probe.view, metrics: [probe.member] }, DEFAULT_FRESHNESS);

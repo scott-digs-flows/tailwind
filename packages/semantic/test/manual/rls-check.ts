@@ -5,6 +5,7 @@
  * rather than decorative. Two users in the SAME tenant, one cache-eligible query, two
  * different row sets and two different cache-key components.
  */
+import { DEFAULT_FRESHNESS } from '@tailwind/spec';
 import { runQuery, resolveSecurityContext, securityContextDigest, type SecurityContext } from '../../src/index.ts';
 
 const query = { view: 'sales', metrics: ['sales.reseller_sales'], dimensions: ['sales.territory_group'] };
@@ -18,7 +19,7 @@ type Outcome = { kind: 'rows'; regions: string[] } | { kind: 'refused'; why: str
 
 async function attempt(ctx: SecurityContext): Promise<Outcome> {
   try {
-    const r = await runQuery(ctx, { ...query });
+    const r = await runQuery(ctx, { ...query }, DEFAULT_FRESHNESS);
     return { kind: 'rows', regions: r.rows.map((x) => String(x['sales.territory_group'])).sort() };
   } catch (e: unknown) {
     return { kind: 'refused', why: e instanceof Error ? e.message.slice(0, 60) : String(e) };

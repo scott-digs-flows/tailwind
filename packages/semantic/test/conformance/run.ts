@@ -6,6 +6,7 @@
  *   node packages/semantic/test/conformance/run.ts [--negative-control]
  */
 import { readFileSync } from 'node:fs';
+import { DEFAULT_FRESHNESS } from '@tailwind/spec';
 import { runQuery, pocSystemContext } from '../../src/index.ts';
 import { CASES } from './cases.ts';
 
@@ -41,7 +42,9 @@ const failures: string[] = [];
 for (const c of CASES) {
   let actual: unknown;
   try {
-    actual = c.actual((await runQuery(ctx, c.query)).rows);
+    // The class is fixed for the suite: conformance measures the DIALECT, and a case
+    // whose answer depended on a cache policy would be measuring us instead.
+    actual = c.actual((await runQuery(ctx, c.query, DEFAULT_FRESHNESS)).rows);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     // A join-path refusal is a legitimate ENGINE ANSWER for an ambiguous query, not a

@@ -14,12 +14,14 @@ export {
 } from './security-context.ts';
 export {
   compile,
+  prepareQuery,
   runQuery,
   applyRowLimit,
   DEFAULT_ROW_LIMIT,
   type SemanticQuery,
   type TimeDimension,
   type CompiledQuery,
+  type PreparedQuery,
   type QueryResult,
 } from './facade.ts';
 export {
@@ -31,3 +33,19 @@ export {
   type DimensionType,
   type Certification,
 } from './catalog.ts';
+// The published artifact version, and ONLY that. `engineEndpoint` stays internal: the
+// endpoint carries a credential and TW-170 exists to keep it inside this package. A
+// bundle version is not a credential, and the envelope and the cache key have to read
+// the same one or a cached result is served under a version it was not computed for.
+export { bundleVersion } from './engine-config.ts';
+// The cache API's shape. No store: TW-44 builds that against these types (ADR-008).
+export {
+  cacheKeyFor,
+  cacheKeyString,
+  cacheLookupFor,
+  type CacheKey,
+  type CacheLookup,
+  type CacheOutcome,
+  type CachedResult,
+  type ResultCache,
+} from './cache.ts';
