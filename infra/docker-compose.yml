@@ -1,0 +1,116 @@
+# ADR-001: ONE topology description. This is the local dev loop AND what runs on the VM.
+# Versions come from infra/versions.env -- never hardcode a tag here.
+#   docker compose --env-file infra/versions.env -f infra/docker-compose.yml up
+name: tailwind
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      args: { NODE_VERSION: "${NODE_VERSION}" }
+    environment:
+      PORT: "3001"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      TAILWIND_BUNDLE_VERSION: "${TAILWIND_BUNDLE_VERSION:-dev}"
+      CUBE_URL: "http://cube:4000/cubejs-api/v1"
+      # The app connects as a NON-superuser so RLS actually applies (ADR-014).
+      DATABASE_URL: "postgres://tailwind_app:tailwind_app@postgres:5432/tailwind"
+      DATABASE_ADMIN_URL: "postgres://tailwind:tailwind@postgres:5432/tailwind"
+      APP_DB_PASSWORD: "tailwind_app"
+      REDIS_URL: "redis://redis:6379"
+      TAILWIND_CONTENT_ROOT: "/srv/content"
+    volumes:
+      # Reviewed artifacts, read-only. In M0 the "bundle" is the working tree; the
+      # immutable per-merge bundle is ADR-007 / T-029.
+      - ../content:/srv/content:ro
+    ports: ["${API_PORT}:3001"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      cube:     { condition: service_started }
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NODE_VERSION: "${NODE_VERSION}"
+        NGINX_VERSION: "${NGINX_VERSION}"
+    ports: ["${WEB_PORT}:80"]
+    depends_on: [api]
+
+  # Cube Core, self-hosted, Apache-2.0 only. NO Cloud features (ADR-003 D1a).
+  cube:
+    image: "cubejs/cube:${CUBE_VERSION}"
+    # T-132 hardening lives in ONE place so the two stacks cannot drift.
+    env_file: [./cube-hardening.env]
+    # Q-01: ClickHouse is the warehouse of record, and it lives in the
+    # data-warehouse-local stack. We join its network rather than running a second
+    # ClickHouse -- one warehouse, one copy of the data, no sync to drift.
+    # The network is named by that stack's compose project (`name: dwl-clickhouse`),
+    # and the container publishes a `clickhouse` alias on it.
+    networks: [default, dwl-clickhouse_default]
+    environment:
+      # ClickHouse is the warehouse of record and the ONLY dialect (Q-01). It runs as a
+      # container, so there is no cloud credential in the build path and no second
+      # dialect to keep in parity.
+      CUBEJS_DB_TYPE: "${CUBEJS_DB_TYPE:-clickhouse}"
+      CUBEJS_DB_HOST: "${CUBEJS_DB_HOST:-clickhouse}"
+      CUBEJS_DB_PORT: "${CUBEJS_DB_PORT:-8123}"
+      CUBEJS_DB_NAME: "${CUBEJS_DB_NAME:-raw}"
+      CUBEJS_DB_USER: "${CUBEJS_DB_USER:-default}"
+      # A local-container default, overridable from the environment. Real warehouse
+      # credentials belong in the secret store, not in a compose file -- that is T-077.
+      # Worth noting this was absent and the stack worked anyway: the warehouse was
+      # accepting anonymous connections, so the gap only surfaced when it stopped.
+      CUBEJS_DB_PASS: "${CUBEJS_DB_PASS:-clickhouse}"
+      # The catalog is read-only (engines.yaml: "Reads Iceberg via DataLakeCatalog.
+      # Read-only."), so tell the driver rather than letting it discover that at runtime.
+      CUBEJS_DB_CLICKHOUSE_READONLY: "true"
+      CUBEJS_API_SECRET: "${CUBEJS_API_SECRET:-dev-only-not-a-secret}"
+      CUBEJS_LOG_LEVEL: "${CUBEJS_LOG_LEVEL:-warn}"
+    volumes:
+      # The reviewed artifacts ARE the model. Read-only: Cube never writes to git-owned content.
+      # Engine config, not a reviewed artifact. contextToRoles in here is what stops
+      # access_policy failing open (ADR-003 Correction 1).
+      - ../infra/cube/cube.js:/cube/conf/cube.js:ro
+      - ../content/tenants/internal/semantic:/cube/conf/model:ro
+    ports: ["${CUBE_PORT}:4000"]
+
+  # Operational DB: job records, audit log, drafts. Never holds anything that changes a number.
+  postgres:
+    image: "postgres:${POSTGRES_VERSION}-alpine"
+    environment:
+      POSTGRES_USER: tailwind
+      POSTGRES_PASSWORD: tailwind
+      POSTGRES_DB: tailwind
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    ports: ["${POSTGRES_PORT}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tailwind -d tailwind"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # OUR Redis -- result cache and job event log (ADR-006 D3 externalizes job state).
+  # Not Cube's: Cube dropped Redis in v0.32.0 and a stray CUBEJS_REDIS_* hard-errors.
+  redis:
+    image: "redis:${REDIS_VERSION}-alpine"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["${REDIS_PORT}:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+networks:
+  default:
+  # Owned by data-warehouse-local's ClickHouse stack. `docker compose up -d` in
+  # stacks/clickhouse there creates it; we only attach.
+  dwl-clickhouse_default:
+    external: true
+
+volumes:
+  pgdata:

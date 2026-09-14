@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.tailwind.internal/v1/dashboard.json",
+  "title": "Tailwind dashboard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec_version",
+    "name",
+    "title",
+    "freshness",
+    "meta",
+    "charts"
+  ],
+  "properties": {
+    "spec_version": {
+      "const": 1
+    },
+    "name": {
+      "$ref": "#/$defs/identifier"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class"
+      ],
+      "description": "FR-FRESH-01. Declared per artifact so it is reviewed, not configured. Promoting to `operational` needs data-team approval (FR-FRESH-04).",
+      "properties": {
+        "class": {
+          "enum": [
+            "batch",
+            "standard",
+            "operational"
+          ],
+          "default": "standard"
+        }
+      }
+    },
+    "meta": {
+      "$ref": "https://schemas.tailwind.internal/v1/cube.json#/$defs/meta"
+    },
+    "charts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/chart"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "member": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+      "description": "view.member. FR-SEM-02: dashboards reference VIEWS only -- cubes are private, which is the mechanism behind the single-definition guarantee."
+    },
+    "chart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "type",
+        "layout",
+        "query"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "line",
+            "bar",
+            "table",
+            "kpi"
+          ]
+        },
+        "layout": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "description": "12-column grid.",
+          "properties": {
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 11
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "w": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "h": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 24
+            }
+          }
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "view",
+            "metrics"
+          ],
+          "properties": {
+            "view": {
+              "$ref": "#/$defs/identifier"
+            },
+            "metrics": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/member"
+              }
+            },
+            "dimensions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/member"
+              }
+            },
+            "filters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "member",
+                  "operator",
+                  "values"
+                ],
+                "properties": {
+                  "member": {
+                    "$ref": "#/$defs/member"
+                  },
+                  "operator": {
+                    "enum": [
+                      "equals",
+                      "notEquals",
+                      "in",
+                      "notIn",
+                      "contains",
+                      "gt",
+                      "gte",
+                      "lt",
+                      "lte"
+                    ]
+                  },
+                  "values": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "order": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "member",
+                  "dir"
+                ],
+                "properties": {
+                  "member": {
+                    "$ref": "#/$defs/member"
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                }
+              }
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50000
+            },
+            "time_dimensions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "member",
+                  "granularity"
+                ],
+                "properties": {
+                  "member": {
+                    "$ref": "#/$defs/member"
+                  },
+                  "granularity": {
+                    "enum": [
+                      "day",
+                      "week",
+                      "month",
+                      "quarter",
+                      "year"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

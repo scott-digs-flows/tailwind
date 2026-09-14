@@ -1,0 +1,13 @@
+# Review routing for FR-GOV-07. Replace the placeholder teams once the GitHub org is set up (T-108).
+# NOTE: CODEOWNERS accepts users and teams but NOT apps -- which is what structurally prevents the
+# PR-brokering bot from approving its own proposals. See 09-git-integration-setup.md section 4.
+
+# Semantic layer: the data team owns every definition that can change a number.
+/content/tenants/*/semantic/**      @REPLACE-ME/data-team
+
+# Everything else under content: domain owners.
+/content/**                         @REPLACE-ME/domain-owners
+
+# Architecture decisions and the requirement contract.
+/docs/adr/**                        @REPLACE-ME/data-team
+/docs/product/**                    @REPLACE-ME/product

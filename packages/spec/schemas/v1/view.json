@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.tailwind.internal/v1/view.json",
+  "title": "Tailwind profile of a Cube view",
+  "x-tailwind-cube-version": "v1.7.18",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "views"
+  ],
+  "properties": {
+    "views": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/view"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "meta": {
+      "$ref": "https://schemas.tailwind.internal/v1/cube.json#/$defs/meta"
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "cubes",
+        "meta",
+        "access_policy"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "cubes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "join_path",
+              "includes"
+            ],
+            "properties": {
+              "join_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prefix": {
+                "type": "boolean"
+              },
+              "includes": {
+                "oneOf": [
+                  {
+                    "const": "*"
+                  },
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              },
+              "excludes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "access_policy": {
+          "type": "array",
+          "minItems": 1,
+          "description": "ADR-003 D4: default-deny, enforced by us. Cube's own default is that all rows are public, so the profile requires an explicit policy on every view rather than trusting the engine default.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "group"
+            ],
+            "properties": {
+              "group": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Cube's key is group/groups; there is no `role`. Requires context_to_groups in cube.js or access_policy fails open (ADR-003 Correction 1)."
+              },
+              "conditions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "if"
+                  ],
+                  "properties": {
+                    "if": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "row_level": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "filters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "member",
+                        "operator"
+                      ],
+                      "properties": {
+                        "member": {
+                          "type": "string"
+                        },
+                        "operator": {
+                          "enum": [
+                            "equals",
+                            "notEquals",
+                            "in",
+                            "notIn",
+                            "contains",
+                            "gt",
+                            "gte",
+                            "lt",
+                            "lte"
+                          ]
+                        },
+                        "values": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "member_level": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "includes": {
+                    "oneOf": [
+                      {
+                        "const": "*"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "excludes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        }
+      }
+    }
+  },
+  "description": "Cube whitelists top-level keys to cubes/views/view_groups, so spec_version rides in meta.tailwind instead. See ADR-004 Amendment (2026-08-12)."
+}

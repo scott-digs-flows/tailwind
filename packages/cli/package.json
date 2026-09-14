@@ -1,0 +1,13 @@
+{
+  "name": "@tailwind/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "tailwind": "./src/main.ts" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": { "@tailwind/spec": "workspace:*" },
+  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.9.3" }
+}

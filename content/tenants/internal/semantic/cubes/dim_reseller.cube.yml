@@ -1,0 +1,51 @@
+cubes:
+  - name: dim_reseller
+    sql_table: raw.dim_reseller
+    # FR-SEM-02: cubes are private. Dashboards reference views only, which is the
+    # mechanism behind the single-definition guarantee.
+    public: false
+    measures:
+      - name: reseller_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Number of resellers.
+            certification: certified
+    dimensions:
+      - name: reseller_key
+        sql: reseller_key
+        type: number
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Reseller surrogate key.
+            certification: certified
+      - name: reseller_name
+        sql: reseller_name
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Reseller trading name.
+            certification: certified
+      - name: business_type
+        sql: business_type
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Reseller business type, e.g. Value Added Reseller or Warehouse.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: AdventureWorks reseller dimension. One row per reseller.
+        certification: certified
+        last_reviewed: '2026-08-26'

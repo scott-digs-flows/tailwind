@@ -1,0 +1,76 @@
+cubes:
+  - name: dim_product
+    sql_table: raw.dim_product
+    public: false
+    measures:
+      - name: product_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Number of products.
+            certification: certified
+      - name: product_standard_cost
+        type: sum
+        sql: standard_cost
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: >-
+              Standard cost, held ONCE per product. Summing it across sales lines is the fan-out trap.
+            certification: certified
+    dimensions:
+      - name: product_key
+        sql: product_key
+        type: number
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product surrogate key.
+            certification: certified
+      - name: product_name
+        sql: english_product_name
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product name.
+            certification: certified
+      - name: color
+        sql: color
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product colour.
+            certification: certified
+      - name: model_name
+        sql: model_name
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product model name, e.g. Road-650. Groups colour and size variants.
+            certification: certified
+      - name: product_line
+        sql: product_line
+        type: string
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Product line code.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: AdventureWorks product dimension. One row per product.
+        certification: certified

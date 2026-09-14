@@ -1,0 +1,67 @@
+cubes:
+  - name: fact_internet_sales
+    sql_table: raw.fact_internet_sales
+    public: false
+    joins:
+      # Declared from the MANY side, which is the direction the view traverses and the
+      # fact Cube needs to detect that a product-level measure would fan out.
+      - name: dim_product
+        relationship: many_to_one
+        sql: '{CUBE}.product_key = {dim_product}.product_key'
+      - name: dim_sales_territory
+        relationship: many_to_one
+        sql: '{CUBE}.sales_territory_key = {dim_sales_territory}.sales_territory_key'
+    measures:
+      - name: internet_sales
+        type: sum
+        sql: sales_amount
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Internet sales net sales amount.
+            certification: certified
+      - name: internet_order_quantity
+        type: sum
+        sql: order_quantity
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Internet sales units ordered.
+            certification: certified
+      - name: internet_line_count
+        type: count
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Internet sales order lines.
+            certification: certified
+    dimensions:
+      - name: internet_line_id
+        sql: concat(sales_order_number, '-', toString(sales_order_line_number))
+        type: string
+        primary_key: true
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: >-
+              Composite line key. AdventureWorks facts have no single-column key, and Cube needs one to deduplicate a multiplied measure.
+            certification: certified
+      - name: internet_order_date
+        sql: order_date
+        type: time
+        meta:
+          tailwind:
+            spec_version: 1
+            owner: data-team
+            description: Internet sales order date.
+            certification: certified
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: Internet sales
+        certification: certified

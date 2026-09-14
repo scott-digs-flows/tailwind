@@ -1,0 +1,70 @@
+views:
+  - name: sales
+    title: Sales
+    description: Certified AdventureWorks sales surface. The only thing dashboards may reference.
+    cubes:
+      - join_path: fact_reseller_sales
+        includes:
+          - reseller_sales
+          - reseller_order_quantity
+          - reseller_line_count
+          - reseller_order_date
+      # Reached THROUGH the lines, so a header measure grouped by a line dimension has
+      # to traverse the one-to-many -- which is what makes the trap reachable.
+      - join_path: fact_reseller_sales.reseller_order
+        includes:
+          - order_freight
+          - order_count
+          - order_placed_at
+      - join_path: fact_internet_sales
+        includes:
+          - internet_sales
+          - internet_line_count
+          - internet_order_date
+      # Nested behind the fact: dim_reseller is only ever reached via reseller sales,
+      # so it needs no independent path.
+      - join_path: fact_reseller_sales.dim_reseller
+        includes:
+          - reseller_count
+          - reseller_name
+          - business_type
+      # Root-level, NOT nested behind a fact: a multi-fact query (reseller and internet
+      # sales together) needs EVERY fact to reach the shared dimension directly, or
+      # Cube cannot find one join tree spanning both.
+      - join_path: dim_product
+        includes:
+          - product_count
+          - product_standard_cost
+          - product_name
+          - color
+          - product_line
+          - model_name
+      - join_path: dim_sales_territory
+        includes:
+          - territory_count
+          - region
+          - country
+          - territory_group
+    access_policy:
+      - group: analyst
+        row_level:
+          filters:
+            []
+        member_level:
+          includes: '*'
+      - group: europe_only
+        row_level:
+          filters:
+            - member: sales.territory_group
+              operator: equals
+              values:
+                - Europe
+        member_level:
+          includes: '*'
+    meta:
+      tailwind:
+        spec_version: 1
+        owner: data-team
+        description: Certified sales surface for dashboards.
+        certification: certified
+        last_reviewed: '2026-08-13'

@@ -1,0 +1,107 @@
+spec_version: 1
+name: sales_overview
+title: AdventureWorks Sales
+freshness:
+  class: standard
+meta:
+  tailwind:
+    spec_version: 1
+    owner: data-team
+    description: Reseller and internet sales from the certified AdventureWorks surface.
+    certification: certified
+    last_reviewed: '2026-08-13'
+charts:
+  - id: reseller_total
+    title: Reseller sales
+    type: kpi
+    layout:
+      x: 0
+      y: 0
+      w: 3
+      h: 2
+    query:
+      view: sales
+      metrics:
+        - sales.reseller_sales
+  - id: internet_total
+    title: Internet sales
+    type: kpi
+    layout:
+      x: 3
+      y: 0
+      w: 3
+      h: 2
+    query:
+      view: sales
+      metrics:
+        - sales.internet_sales
+  - id: reseller_trend
+    title: Reseller sales by month
+    type: line
+    layout:
+      x: 0
+      y: 2
+      w: 12
+      h: 5
+    query:
+      view: sales
+      metrics:
+        - sales.reseller_sales
+      order:
+        - member: sales.reseller_order_date
+          dir: asc
+      time_dimensions:
+        - member: sales.reseller_order_date
+          granularity: month
+  - id: by_product_line
+    title: Reseller sales by product line
+    type: bar
+    layout:
+      x: 0
+      y: 7
+      w: 6
+      h: 5
+    query:
+      view: sales
+      metrics:
+        - sales.reseller_sales
+      dimensions:
+        - sales.product_line
+      order:
+        - member: sales.reseller_sales
+          dir: desc
+  - id: by_country
+    title: Sales by country
+    type: table
+    layout:
+      x: 6
+      y: 7
+      w: 6
+      h: 5
+    query:
+      view: sales
+      metrics:
+        - sales.reseller_sales
+        - sales.internet_sales
+      dimensions:
+        - sales.country
+      order:
+        - member: sales.reseller_sales
+          dir: desc
+  - id: by_business_type
+    title: Reseller sales by business type
+    type: bar
+    layout:
+      x: 0
+      y: 12
+      w: 6
+      h: 5
+    query:
+      view: sales
+      metrics:
+        - sales.reseller_sales
+      dimensions:
+        - sales.business_type
+      order:
+        - member: sales.reseller_sales
+          dir: desc
