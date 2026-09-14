@@ -7,6 +7,7 @@ export {
 export {
   compile,
   runQuery,
+  applyRowLimit,
   DEFAULT_ROW_LIMIT,
   type SemanticQuery,
   type TimeDimension,

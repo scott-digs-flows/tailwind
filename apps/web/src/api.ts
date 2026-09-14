@@ -3,7 +3,13 @@ import type { ResultRow } from '@tailwind/charts';
 
 const BASE: string = import.meta.env.VITE_API_BASE ?? '/api';
 
-/** ADR-006 D3. Every response carries this; the UI reads freshness and provenance from it. */
+/**
+ * ADR-006 D3. Every response carries this; the UI reads freshness and provenance from it.
+ *
+ * This shape is duplicated from apps/api rather than imported, so it can drift without
+ * typecheck noticing. If you add a field there, add it here -- `notices` was added
+ * precisely because a producing side shipped with no consuming surface.
+ */
 export interface EnvelopeMeta {
   bundle_version: string;
   as_of: string | null;
@@ -11,6 +17,8 @@ export interface EnvelopeMeta {
   cache: string;
   trace_id: string;
   security_context_digest: string;
+  /** ADR-006 amendment. Empty means "nothing to say"; severity >= warn MUST be shown. */
+  notices: { code: string; severity: 'info' | 'warn' | 'error'; message: string }[];
 }
 export interface Envelope<T> {
   meta: EnvelopeMeta;

@@ -107,6 +107,27 @@ export function ChartCard({ chart, freshness }: { chart: DashboardChart; freshne
       {error !== null && <p style={{ color: 'var(--bad)', fontSize: '.8rem' }}>{error}</p>}
       {error === null && rows === null && <p style={{ fontSize: '.8rem', opacity: 0.5 }}>loading…</p>}
 
+      {/* ADR-006 amendment: severity >= warn must be rendered. It sits ABOVE the chart
+          deliberately -- a caveat under a number is read after the number has already
+          been believed. A truncated result that draws as a complete chart is the exact
+          failure this product exists to prevent. */}
+      {(meta?.notices ?? [])
+        .filter((n) => n.severity !== 'info')
+        .map((n) => (
+          <p
+            key={n.code}
+            role="status"
+            style={{
+              fontSize: '.7rem', margin: '0 0 .5rem', padding: '.35rem .5rem',
+              borderRadius: 4, border: '1px solid var(--rule)',
+              color: n.severity === 'error' ? 'var(--bad)' : 'var(--fg)',
+              background: 'var(--ground)',
+            }}
+          >
+            {n.message}
+          </p>
+        ))}
+
       {rows !== null && chart.type === 'kpi' && <Kpi chart={chart} rows={rows} />}
       {rows !== null && chart.type === 'table' && <Table chart={chart} rows={rows} />}
       {rows !== null && (chart.type === 'line' || chart.type === 'bar') && <EChart chart={chart} rows={rows} />}
