@@ -10,6 +10,7 @@ export {
 export { parseSpec, validate, formatErrors, type ParseResult, type SpecError } from './validate.ts';
 export type {
   Dashboard, DashboardChart, ChartQuery, ChartType, FreshnessClass, FilterOperator, TimeDimensionRef,
+  TailwindMeta, Certification,
 } from './types.ts';
 export { format, isFormatted, NonCanonicalError } from './format.ts';
 export { keyOrder } from './schema-order.ts';

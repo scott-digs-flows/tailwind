@@ -5,6 +5,26 @@
  * surfacing at runtime.
  */
 export type FreshnessClass = 'batch' | 'standard' | 'operational';
+export type Certification = 'certified' | 'draft' | 'deprecated';
+
+/**
+ * FR-SEM-06's four fields, carried by every cube, view, measure, dimension and
+ * dashboard. All four are non-optional here because all four are `required` in
+ * `schemas/v1/cube.json#/$defs/meta` — the provenance badge, the catalog and the AI
+ * context builder are the consumers, and none of them should be written against a
+ * `string | undefined` for a field CI guarantees is present.
+ *
+ * `replaced_by` is the exception and stays optional on purpose: it is only meaningful
+ * alongside `certification: deprecated` (FR-SEM-07), which TW-31 owns.
+ */
+export interface TailwindMeta {
+  spec_version: 1;
+  owner: string;
+  description: string;
+  certification: Certification;
+  last_reviewed: string;
+  replaced_by?: string;
+}
 export type ChartType = 'line' | 'bar' | 'table' | 'kpi';
 export type FilterOperator =
   | 'equals' | 'notEquals' | 'in' | 'notIn' | 'contains' | 'gt' | 'gte' | 'lt' | 'lte';
@@ -37,6 +57,6 @@ export interface Dashboard {
   name: string;
   title: string;
   freshness: { class: FreshnessClass };
-  meta: { tailwind: { owner: string; description: string; certification: string; last_reviewed?: string } };
+  meta: { tailwind: TailwindMeta };
   charts: DashboardChart[];
 }

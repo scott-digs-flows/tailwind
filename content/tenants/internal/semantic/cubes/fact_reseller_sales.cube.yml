@@ -29,6 +29,7 @@ cubes:
             owner: data-team
             description: Reseller sales net sales amount.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: reseller_order_quantity
         type: sum
         sql: order_quantity
@@ -38,6 +39,7 @@ cubes:
             owner: data-team
             description: Reseller sales units ordered.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: reseller_line_count
         type: count
         meta:
@@ -46,6 +48,7 @@ cubes:
             owner: data-team
             description: Reseller sales order lines.
             certification: certified
+            last_reviewed: '2026-08-13'
     dimensions:
       - name: reseller_line_id
         sql: concat(sales_order_number, '-', toString(sales_order_line_number))
@@ -58,6 +61,7 @@ cubes:
             description: >-
               Composite line key. AdventureWorks facts have no single-column key, and Cube needs one to deduplicate a multiplied measure.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: reseller_order_date
         sql: order_date
         type: time
@@ -67,9 +71,11 @@ cubes:
             owner: data-team
             description: Reseller sales order date.
             certification: certified
+            last_reviewed: '2026-08-13'
     meta:
       tailwind:
         spec_version: 1
         owner: data-team
         description: Reseller sales
         certification: certified
+        last_reviewed: '2026-08-13'

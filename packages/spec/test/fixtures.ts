@@ -8,8 +8,22 @@ export const meta = (indent: number): string => {
     `${p}    owner: data-team`,
     `${p}    description: Orders placed by resellers.`,
     `${p}    certification: certified`,
+    `${p}    last_reviewed: '2026-08-12'`,
   ].join('\n');
 };
+
+/** The four FR-SEM-06 fields, as they appear in a meta block. Tests delete one at a
+ *  time from a known-good fixture, so the list has to match the schema's `required`. */
+export const REQUIRED_META_FIELDS = ['owner', 'description', 'certification', 'last_reviewed'] as const;
+
+/**
+ * Drop the first `key: value` line for `field` — the negative control for FR-SEM-06.
+ * `(\n|$)` rather than `\n` because `meta()` returns a block with no trailing newline,
+ * so the last field would otherwise be un-removable and its test would silently assert
+ * nothing.
+ */
+export const without = (src: string, field: string): string =>
+  src.replace(new RegExp(`^ *${field}: .*(\\n|$)`, 'm'), '');
 
 export const VALID_CUBE = `cubes:
   - name: orders
