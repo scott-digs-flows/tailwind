@@ -275,7 +275,7 @@ data-shaped code in the backend, by constraint (§2.2 forbids a second computati
   `tailwind fmt` to canonicalize and the schema to validate.
 
 So **data-team-facing tooling may be Python where that is natural** — T-119 (dbt manifest bootstrap)
-is native Python territory, as is the AI eval harness, and `scripts/validate_docs.py` already is.
+is native Python territory, as is the AI eval harness, and `scripts/validate_jira.py` already is.
 The application is TypeScript; the tooling boundary is `fmt` plus the schema.
 
 **Mitigation for the residual staffing cost.** The friction for Python engineers is the *toolchain*,
@@ -320,3 +320,126 @@ fabricated timestamp.
 the real signal is upstream refresh completion — dbt run completion, per FR-FRESH-05 — which
 arrives with T-111. The value of the amendment is that the gap is now visible instead of papered
 over.
+
+---
+
+## Amendment: the envelope must carry degradation, and the façade signature drifted (2026-09-14)
+
+Two gaps found by reading the M0 code against D3 and D4 during an architectural review of a
+product-owner coverage report. Neither reverses a decision; both complete one, and both are in the
+category D3 itself names — *"adding them later means touching every endpoint and every client call
+site."*
+
+### A — `meta.notices`: an honest failure is part of the contract, not a component's choice
+
+The envelope tells the truth about **staleness** (`as_of`, `freshness.stale`) and about **which
+context produced the result** (`security_context_digest`). It has no way to say anything else went
+wrong while still returning data. Four cases exist or are imminent:
+
+- **Truncation.** `compile()` sets `limit = query.limit ?? 10000` on every query, and FR-ADM-03's
+  governor (T-037) will add more caps. A result that hit the cap renders as a complete chart. "Revenue
+  by customer" silently becomes "revenue by the first 10,000 customers" — a confident chart with a
+  wrong number, which `00-vision.md` names as the enemy the product exists to remove.
+- **Partial failure.** A dashboard is N independent chart queries. Per-chart failure is currently
+  honest by accident; there is no dashboard-level statement that three of six charts failed and the
+  page therefore does not add up. Cross-filtering (M1) makes this worse, not better.
+- **Degraded-but-served.** Serving a cached result because the warehouse is unreachable does not
+  exist yet and will the moment ADR-008 lands. It is a `meta` field on every response, so it must
+  exist before the cache does.
+- **Empty by policy.** `rows: []` cannot distinguish "the filter matched nothing" from "row-level
+  security removed everything you could have seen". The second must say so, or it reads as a data
+  quality problem and generates false "this number looks wrong" reports — the very signal
+  `00-vision.md §8`'s correction-rate metric depends on.
+
+**Decision.** `EnvelopeMeta` gains one required field:
+
+```jsonc
+"notices": [                       // [] means "nothing to say". Never null, never absent.
+  { "code": "row_limit_reached", "severity": "warn", "message": "…", "detail": { } }
+]
+```
+
+`code` is a **closed enum** — `row_limit_reached`, `served_stale`, `partial_failure`,
+`empty_by_policy`, `query_timeout`, `cache_degraded` — because the renderer switches on it and
+because an open string field becomes prose that nothing renders. `severity` is `info | warn |
+error`. Adding a code is a deliberate schema change, exactly as ADR-004 D2 makes adding a Cube key
+one.
+
+Three rules come with it:
+
+1. **The envelope is the only channel for degradation.** Nothing is communicated by an HTTP status
+   alone, because a 200 with a truncated body is the case that matters.
+2. **`packages/charts` takes `notices` as an input.** The adapter is the shared surface between the
+   browser and `apps/render` (ADR-005 D2), and if only the browser degrades, the CI screenshot
+   attached to a PR is a *cleaner* picture than the user's — the evidence pipeline lies in the
+   product's favour, which is the worst direction for it to lie.
+3. **A notice with severity ≥ `warn` must be rendered.** It is a contract on the adapter, not a
+   per-component decision, and it is testable: a golden render with a `row_limit_reached` notice
+   must differ from one without.
+
+**Rejected:** a per-endpoint `warnings` array in `data`. It puts the disclosure inside the payload
+each caller destructures differently, which is how three endpoints end up with three shapes and the
+renderer ends up with none.
+
+**Requirement gap this exposes.** FR-FRESH-03 requires honest disclosure of *staleness* only.
+Nothing requires it for truncation, partial failure or policy-emptiness. That needs a new `Must` in
+`01-requirements.md` (`FR-CON-07` is free) landed together with its ticket, so the coverage check
+stays green — handed to `delivery-lead` rather than written here, per the ADR skill's rule 4.
+
+### B — the façade signature, and one stale path in D4
+
+D4 specifies `compileAndExecute(ctx: SecurityContext, q: SemanticQuery, f: FreshnessClass)`. What
+shipped in `packages/semantic` is `runQuery(opts: CubeClientOptions, query: SemanticQuery, ctx:
+SecurityContext)`. Three differences, in increasing order of cost:
+
+1. **`FreshnessClass` is absent.** The class is read from the request body in `routes.ts` and passed
+   only to `envelope()` for display. It is therefore a **label on the response, not an input to
+   execution** — which is precisely the thing `08-poc-scope.md §3.7` and
+   `02-architecture-brief.md §3.3b` said must not happen, because ADR-008's cache reads its policy
+   from it. **D4's signature stands; the code is what must move.** Fix this before ADR-008 is
+   written, not as part of it.
+2. **The class arrives from the client.** `POST /v1/queries` accepts `body.freshness`, so a client
+   picks its own cache policy. Harmless while `cache` is always `bypass`; the day a cache exists it
+   is unbounded warehouse spend (request `operational`, bypass everything) or a silently 24-hour-old
+   number (request `batch`), and it routes around FR-FRESH-04's approval gate — the validator
+   rejects `operational` in a *spec* (ADR-004 D4) while the *API* accepts it in a body.
+   **Amendment: the freshness class is resolved server-side from the published artifact, exactly as
+   the security context is resolved from the principal.** The ad-hoc/draft path gets a
+   server-chosen default, never a client-chosen one. Same reasoning as D4's: a governed property
+   supplied by the caller is not governed.
+3. **`CubeClientOptions` is constructed in `apps/api/src/routes.ts`** and threaded as the façade's
+   first argument, so the API layer owns the engine's URL and API secret. Not a semantics leak —
+   no caller sees a Cube query object — but a lifecycle one, and it means credentials flow through
+   a route module. The façade owns its own transport configuration; `runQuery(ctx, query, freshness)`
+   takes no transport options.
+
+**And D4's boundary rule contradicts itself.** It says both *"nothing outside `apps/api/src/semantic/`
+may import the Cube client"* and *"`packages/semantic` is the only module in the repository that may
+import the Cube client"*. The second is correct — ADR-004 D1 puts the façade in `packages/semantic/`
+— and the first is a stale path from before that layout landed. **Read D4 as the second form.**
+
+More importantly: **the lint D4 relies on does not exist.** There is no dependency-boundary check in
+CI. "One door" (binding constraint §2.2) is currently held by convention, and ADR-003 D4 states it as
+a mechanical property. Two rules, one ESLint `no-restricted-imports` and one export-surface
+assertion:
+
+- Nothing outside `packages/semantic` may import `cube-client`, and nothing outside it may import a
+  database driver.
+- `packages/semantic`'s public exports contain no function that omits `SecurityContext`, and no type
+  whose name or shape is the vendor's. `cubeMeta(...): Promise<unknown>` currently fails the second
+  half on both counts — it has no caller today, and it acquires two the moment metric discovery and
+  the AI context builder (T-045) are built, at which point Cube's metadata schema is in the prompt,
+  the discovery UI and the eval suite simultaneously. Rename and give it a Tailwind return type
+  **before** it has a caller; `unknown` out of a façade guarantees the caller casts it back into the
+  vendor's shape, and that is the leak that would make ADR-003 genuinely expensive to revisit.
+
+**Assessment against ADR-003's reversibility claim:** the façade is thin and the claim holds —
+`compile()` is a mechanical ~50-line translation, and swapping engines today costs about a day
+including the `routes.ts` rewiring. But it holds by luck rather than by construction, because the
+lint is missing. Land the lint before T-045.
+
+**Validation for both halves.** (1) A query whose result hits the row cap returns a
+`row_limit_reached` notice, and its headless render differs from the unlimited one. (2) A request
+body carrying `freshness: "operational"` does not change cache behaviour — the served class comes
+from the artifact. (3) The boundary lint fails on a deliberately added `cube-client` import in
+`apps/api`. (4) A `packages/semantic` export added without a `SecurityContext` parameter fails CI.

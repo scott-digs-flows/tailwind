@@ -144,12 +144,12 @@ Every external dependency, with its status. Anything `OPEN` is a question, not a
 | System | Purpose | Requirements | Status |
 |---|---|---|---|
 | Identity provider | SSO, group sync | FR-SEC-01/02 | **OPEN** — which IdP, SCIM available? |
-| Git host | Artifact storage, PR review, webhooks | FR-GOV-01/02, ADR-010 | **OPEN (Q-06)** — and can we hold a service account? |
-| Warehouse | Query execution | FR-SEM-05, ADR-002 | **OPEN (Q-01)** |
+| Git host | Artifact storage, PR review, webhooks | FR-GOV-01/02, ADR-010 | **DECIDED (Q-06)** — GitHub, app-brokered PRs via a GitHub App; runbook in `09-git-integration-setup.md`. |
+| Warehouse | Query execution | FR-SEM-05, ADR-002 | **DECIDED (Q-01)** — ClickHouse is the warehouse of record and the only dialect; tier is a computed conformance result (ADR-002). |
 | Model provider | AI features | FR-AI-*, ADR-011 | **OPEN (Q-05)** — egress policy dependent |
 | Secret store | Warehouse credentials, API keys | FR-SEC-06, NFR-SEC-01 | **OPEN** — existing standard? |
 | CI system | The review gate | FR-GOV-03/04/05 | **OPEN** — assumed same as git host |
-| Email / Slack | Subscriptions, notifications | FR-VIZ-07 | **OPEN** — which channels are sanctioned? |
+| Email / Slack | Subscriptions, notifications | FR-VIZ-07 | **OPEN for GA, not blocking the POC.** An *in-app* notification needs no sanctioned external channel, so the POC's first (and possibly only) delivery channel can ship without this answer. The question is which **external** channel is sanctioned, and it is needed before scheduled delivery, not before M2. |
 | Observability stack | Logs, traces, metrics | NFR-OPS-01, ADR-015 | **OPEN** — existing standard? |
 | dbt | Upstream transformation + metadata | Q-11, FR-DEV-06 | **OPEN** — in use? |
 | Data catalog | Lineage, discovery | FR-SEM-10 | Not required for v1 |

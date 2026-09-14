@@ -37,7 +37,7 @@ Not cancelled — deferred, with an explicit trigger in §4 that brings each one
 | **Security assurance** | Pen test, formal threat model, column-level masking | Replace with a one-page lightweight threat model. Full review is an M3 gate. |
 | **Scale** | Query queue, per-user fairness, Tier-2/3 load testing, cache pre-warm | 15 users. Measure instead of engineer (§5). |
 | **Tenancy ceremony** | Two-tenant seeding in all environments, mandatory two-tenant design reviews (NFR-TEN-02) | See §6 — the tension with Q-03. |
-| **Authoring polish** | Visual/WYSIWYG editor (T-038) | The AI path plus hand-editing tests the hypothesis. The editor is adoption polish. |
+| **Authoring polish** | Visual/WYSIWYG editor (T-038) | The AI path plus hand-editing tests the hypothesis. The editor is adoption polish. **Note the load-bearing half of that sentence: hand-editing a draft is *in* POC scope** — it is FR-AI-04's explicit "edit by hand", and it is what this deferral rests on. See §3.8. |
 | **Delivery** | Scheduled subscriptions, PDF/XLSX export, embedding, alerting | Not on the hypothesis path. |
 | **Operations** | Cost attribution reporting, cache admin UI, content lifecycle | Instrument (§5), don't build UI for it. |
 | **Accessibility** | Formal WCAG audit | Keep colorblind-safe palettes and keyboard basics as hygiene; audit at M3. |
@@ -80,6 +80,31 @@ observing.
 ### 3.7 Freshness classes (FR-FRESH-01/02)
 Declared per artifact from day one. Only `standard` needs to *work* in the POC (§7), but the class
 must exist in the spec — it shapes the cache API, and cache APIs are painful to re-cut.
+
+### 3.8 Hand-editing a draft before proposing
+*(Added 2026-09-14 after a product-owner coverage review found this named in §2 as the reason the
+visual editor is deferrable, and specified nowhere else.)*
+
+FR-AI-04 says the author can *"inspect, **edit by hand**, re-prompt, or discard"*. Only generation
+and re-prompting are built. A draft that is 90% right with one wrong filter therefore has two
+outcomes — re-prompt and hope, or discard — and both record as *not merged*. That is a **false red
+on the central hypothesis**: it would read as "business users plus AI cannot produce mergeable
+artifacts" when the finding was "we shipped a generate button without an edit button."
+
+This is not the visual editor and must not be built as one. The minimum is a bounded form over the
+few fields that go wrong (title, chart type, metric chosen from the certified list, filter values,
+grain, layout) plus an editable **"show the spec"** escape hatch, both saving through the one
+canonical serializer in `packages/spec` and both gated on the same validator the CLI and CI run
+(FR-SEM-11). The editor deferred in §2 is WYSIWYG direct manipulation with lossless round-trip —
+a different and much larger thing.
+
+Two rules the surface inherits rather than invents: the draft's document model **is** the parsed
+spec (ADR-004 D3, `02-architecture-brief.md §3.6`), so comments and byte layout survive the edit;
+and a draft preview renders through the same façade and the same security context as a published
+chart, badged `Draft` / `AI-proposed, unreviewed` and never `certified`.
+
+How much of the spec a *non-technical* author sees is a separate question — T-122 / TW-135 — and it
+shapes this surface without deciding whether it exists.
 
 ## 4. Triggers that end a deferral
 
