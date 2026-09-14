@@ -127,33 +127,48 @@ def fetch_issues() -> list[dict]:
 
 # --------------------------------------------------------------------------- parse
 
-def adf_text(node) -> str:
-    """Flatten an ADF document to text.
+FENCE_RE = re.compile(r"```tailwind-meta\s*\n(.*?)```", re.S)
 
-    The REST API returns `description` as ADF, not the markdown that was written.
-    The meta block is a codeBlock in that tree, so the parse has to walk it --
-    reading `description` as a string works through the MCP and silently returns
-    nothing here.
+
+def adf_code_blocks(node, out: list[str]) -> None:
+    """Collect the text of every codeBlock in an ADF document.
+
+    The REST API returns `description` as ADF, not the markdown that was written, so
+    the parse has to walk the tree. It collects code blocks ONLY: the meta block is a
+    codeBlock, and scanning the whole document instead would let a `req_ids:` written
+    in ordinary prose shadow the real one -- the regexes below take the first match.
     """
-    if node is None:
-        return ""
-    if isinstance(node, str):
-        return node
     if isinstance(node, list):
-        return "\n".join(adf_text(n) for n in node)
-    if isinstance(node, dict):
-        if node.get("type") == "text":
-            return node.get("text", "")
-        return adf_text(node.get("content")) if node.get("content") else ""
-    return ""
+        for n in node:
+            adf_code_blocks(n, out)
+    elif isinstance(node, dict):
+        if node.get("type") == "codeBlock":
+            # A codeBlock's children are inline text nodes; they are one line of source
+            # split by marks, so they join with nothing rather than with a newline.
+            out.append("".join(
+                c.get("text", "") for c in (node.get("content") or []) if isinstance(c, dict)
+            ))
+        else:
+            adf_code_blocks(node.get("content"), out)
+
+
+def meta_text(description) -> str:
+    """The contents of the tailwind-meta block, whatever format the API returned."""
+    if description is None:
+        return ""
+    if isinstance(description, str):
+        # Markdown, as the MCP returns it. Take the fenced block, not the whole body.
+        return "\n".join(FENCE_RE.findall(description))
+    blocks: list[str] = []
+    adf_code_blocks(description, blocks)
+    return "\n".join(blocks)
 
 
 def normalise(issue: dict) -> dict:
     f = issue.get("fields", {})
-    desc = f.get("description")
-    text = desc if isinstance(desc, str) else adf_text(desc)
-    legacy = LEGACY_RE.search(text or "")
-    reqs = REQIDS_RE.search(text or "")
+    text = meta_text(f.get("description"))
+    legacy = LEGACY_RE.search(text)
+    reqs = REQIDS_RE.search(text)
     links = []
     for link in f.get("issuelinks") or []:
         name = (link.get("type") or {}).get("name")
@@ -292,9 +307,11 @@ def main() -> int:
         if moscow in {"M", "S"} and req not in referenced:
             err(f"{req} is a {'Must' if moscow == 'M' else 'Should'} with no ticket")
 
-    # 9. XL is a flag meaning "not understood well enough to start", not an estimate
+    # 9. XL is a flag meaning "not understood well enough to start", not an estimate.
+    # Only STARTED work breaches this. A finished XL is history -- erroring on it forever
+    # would make the check impossible to get back to green, which is how a gate dies.
     for t in tickets:
-        if "size-XL" in t["labels"] and t["status"] != "To Do":
+        if "size-XL" in t["labels"] and t["status"] == "In Progress":
             err(f"{t['key']}: XL tickets must be split before work starts")
 
     # warnings
@@ -306,7 +323,7 @@ def main() -> int:
         for adr in sorted(defined_adrs - written):
             warn(f"{adr} is not yet written to docs/adr/")
     for t in tickets:
-        if "size-XL" in t["labels"]:
+        if "size-XL" in t["labels"] and t["status"] == "To Do":
             warn(f"{t['key']} is XL and not yet split (fails the Definition of Ready)")
 
     print(f"Checked {len(tickets)} tickets in {len(epics)} epics against "
