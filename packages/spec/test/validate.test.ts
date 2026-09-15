@@ -53,6 +53,18 @@ test('a dashboard metric must be view-qualified (FR-SEM-02)', () => {
   fails('dashboard', VALID_DASHBOARD.replace('metrics: [orders.revenue]', 'metrics: [revenue]'));
 });
 
+/**
+ * The other half of ADR-004 D4, and the half a well-meaning cleanup deletes. The schema
+ * keeps `operational` legal so the format can express the class and the cache API can
+ * take it (FR-FRESH-02) without a re-cut later; what refuses to ship one is the
+ * `operational-not-in-poc` bundle lint, tested in `lint.test.ts`. If this assertion ever
+ * fails because the enum was tightened, that lint is the thing to keep, not this line.
+ */
+test('`operational` stays legal in the schema — the refusal is the bundle lint (ADR-004 D4)', () => {
+  const r = parseSpec('dashboard', VALID_DASHBOARD.replace('class: standard', 'class: operational'));
+  assert.equal(r.ok, true, 'the class is expressible in the format from commit one');
+});
+
 test('an unsupported chart type is rejected', () => {
   fails('dashboard', VALID_DASHBOARD.replace('type: kpi', 'type: sankey'));
 });

@@ -168,7 +168,7 @@ changed nothing about who can see what.
 
 | Command | Catches | Misses |
 |---|---|---|
-| `validate` | Shape and policy: unknown keys, Jinja, missing metadata, non-view metric refs, duplicate metrics, Cloud-gated keys, executable model files | Whether the numbers are right |
+| `validate` | Shape and policy: unknown keys, Jinja, missing metadata, non-view metric refs, duplicate metrics, Cloud-gated keys, executable model files, an `operational` freshness class | Whether the numbers are right |
 | `fmt --check` | Non-canonical bytes | Anything semantic |
 | `./scripts/conformance.sh` | **Wrong numbers** — fan-out, chasm traps, grain rollups | Anything not modelled as a case |
 | `./scripts/rls-e2e.sh` | **Rows the wrong person can see** — an `access_policy` that stopped restricting, end to end through the API | Whether the policy expresses the rule the business meant |
@@ -187,6 +187,7 @@ high. `validate` will pass it. Only conformance won't.
 | `Unexpected YAML key: spec_version` | Top-level `spec_version` on a cube or view. Move it into `meta.tailwind`. |
 | `must have required property 'last_reviewed'` | Rule 1. The path names the member — `/cubes[dim_product]/measures[product_count]` is that measure, not the fourth one you counted to. |
 | `metric 'x' is also defined in …` | Rule 3. Both sites are named; either can be the one that moves. |
+| `` `operational` is not a freshness class the POC ships `` | Deferred, not forbidden. Near-live data cannot be cached, so it is the expensive class and FR-FRESH-04 gives the decision to the data team. Declare `standard` or `batch`; if you genuinely need near-live, ask them — `08-poc-scope.md §4` treats a real request as a reason to reopen the deferral. |
 | `Can't find join path to join 'a','b'` | No path between two cubes, or two facts sharing a dimension where one lacks a direct join. Sometimes correct — "product cost by territory" has no single right answer, so Cube refuses rather than inventing one. |
 | `You requested hidden member: 'x'` | `member_level` missing from the policy, or the caller's groups match no policy at all. Default-deny working. |
 | `Cube Store was specified as queue/cache driver` | `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` got dropped. Note it fails at **query** time, not startup — `/readyz` stays green. |
