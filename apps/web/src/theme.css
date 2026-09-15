@@ -22,3 +22,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 button:focus-visible { outline: 2px solid var(--good); outline-offset: 2px; }
+
+/* FR-VIZ-13: a chart that is still loading has to LOOK like it, so the loading state
+   has a shape on the card rather than a word in the corner. Built out of --rule so it
+   reads as furniture, not as data, in both themes. */
+.tw-skeleton {
+  display: block;
+  background: var(--rule);
+  animation: tw-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tw-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  /* Still visible, just not moving: the state must remain distinguishable. */
+  .tw-skeleton { animation: none; opacity: .7; }
+}

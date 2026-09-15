@@ -7,6 +7,7 @@ import {
   type FreshnessClass,
 } from '@tailwind/spec';
 import { envelope } from './envelope.ts';
+import { classifyQueryFailure, failureNotice } from './query-failure.ts';
 import { loadDashboard } from './content.ts';
 import { health } from './db.ts';
 import { recordQuery } from './audit.ts';
@@ -55,10 +56,23 @@ export function registerRoutes(app: FastifyInstance): void {
         cache: 'bypass',
       });
     } catch (e: unknown) {
+      // The raw error goes to the log, never to the browser. `loadDashboard` raises
+      // either "not found" or the validator's findings, and the findings carry the
+      // artifact's path on disk and its line numbers -- useful in a CI job, a
+      // filesystem layout disclosed to a reader in a browser (NFR-SEC-05).
+      req.log.warn({ err: e, dashboard: req.params.name }, 'dashboard could not be served');
+      const message =
+        'This dashboard could not be opened. It may have been renamed or not yet ' +
+        'published -- the data team can confirm which.';
       reply.code(404);
-      return envelope({ error: e instanceof Error ? e.message : String(e) }, ctx, {
+      // Said twice, in `data.error` and in a notice, because the two have different
+      // readers: `data.error` is what a caller of this endpoint destructures, the
+      // notice is what any surface rendering the envelope shows without special-casing
+      // this route (ADR-006 amendment, rule 1).
+      return envelope({ error: message }, ctx, {
         traceId: req.id,
         cache: 'bypass',
+        notices: [{ code: 'query_failed', severity: 'error', message }],
       });
     }
   });
@@ -116,10 +130,22 @@ export function registerRoutes(app: FastifyInstance): void {
           ...(result.asOf !== undefined ? { asOf: result.asOf } : {}),
         });
       } catch (e: unknown) {
-        reply.code(400);
-        return envelope({ error: e instanceof Error ? e.message : String(e) }, ctx, {
+        // FR-VIZ-13. A chart whose query fails must say so in place, in language a
+        // business user can act on -- so the plain-language translation happens here,
+        // where what actually went wrong is still known, and the raw error goes to the
+        // log under the same trace id the reader is shown. Previously `e.message` went
+        // straight to the browser, which could put the engine's name and a fragment of
+        // the generated SQL on a dashboard.
+        const failure = classifyQueryFailure(e);
+        req.log.error(
+          { err: e, code: failure.code, view: req.body?.query?.view },
+          'chart query failed',
+        );
+        reply.code(failure.status);
+        return envelope({ error: failure.message }, ctx, {
           traceId: req.id,
           cache: 'bypass',
+          notices: [failureNotice(failure)],
         });
       }
     },
