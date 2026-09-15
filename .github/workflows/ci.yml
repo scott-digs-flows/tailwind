@@ -37,6 +37,18 @@ jobs:
       - run: pnpm -r --if-present build
       - run: pnpm -r --if-present test
 
+      # Binding constraint 2, "one door", as a build failure rather than a habit.
+      # ADR-006 D4 always specified this lint; it did not exist until TW-170, so the
+      # property it asserts -- that packages/semantic is the only module that may reach
+      # the engine, and that nothing vendor-shaped leaves it -- held by luck. It is
+      # also what keeps ADR-003 reversible: the day we replace Cube, the cost is this
+      # package and nothing else, and that is only true if it is checked.
+      # The rules' own logic is unit-tested with fixtures that must make each one fire
+      # (packages/semantic/test/boundary-lint.test.ts); this step runs them over the
+      # real tree and prints the finding rather than an assertion diff.
+      - name: The facade is the only door
+        run: pnpm --filter @tailwind/semantic lint:boundary
+
       # FR-SEM-11: the same validator the app and the CLI use, run over the reviewed
       # artifacts. If these three ever disagree about what is valid, the review gate lies.
       - name: Validate specs

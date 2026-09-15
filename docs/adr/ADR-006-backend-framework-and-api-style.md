@@ -438,6 +438,22 @@ assertion:
 including the `routes.ts` rewiring. But it holds by luck rather than by construction, because the
 lint is missing. Land the lint before T-045.
 
+> **Amended 2026-09-14 (TW-170).** Item 3 and both lint rules have landed, before T-045 as
+> instructed. The engine's URL and API secret are read in `packages/semantic/src/engine-config.ts`
+> and the façade signature is `runQuery(ctx, query)` — no transport argument, so no caller can
+> point it at another engine or supply its own credential. `cubeMeta` is now
+> `describeCatalog(ctx): Promise<SemanticCatalog>`, a Tailwind-shaped view/metric/dimension
+> catalogue carrying the `meta.tailwind` governance block (FR-SEM-06/07) and deliberately dropping
+> `aliasMember`, which names the private cube behind a view member. The lint is
+> `packages/semantic/tools/boundary-lint.ts`, run in CI and unit-tested with fixtures that must
+> make each rule fire. Two interpretations a reviewer should check rather than assume: "a database
+> driver" is split into warehouse drivers (banned outside the façade, no exceptions) and
+> operational-store drivers (`pg`, `redis`, permitted per file by a named allowlist, because
+> `apps/api` legitimately owns that store and a blanket ban would have been deleted within a week);
+> and `runQuery` still does not take a `FreshnessClass`, so **items 1 and 2 above remain open** —
+> they are a caching decision, not a boundary one, and belong with ADR-008 rather than in a
+> boundary ticket.
+
 **Validation for both halves.** (1) A query whose result hits the row cap returns a
 `row_limit_reached` notice, and its headless render differs from the unlimited one. (2) A request
 body carrying `freshness: "operational"` does not change cache behaviour — the served class comes

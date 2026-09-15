@@ -1,18 +1,19 @@
 import { createHmac } from 'node:crypto';
+import { engineEndpoint } from './engine-config.ts';
 import type { SecurityContext } from './security-context.ts';
 
 /**
- * The ONLY module permitted to speak to Cube. ADR-006's "one door" is a MODULE
- * boundary, not a process boundary: apps/api and apps/render both import the
- * facade, and nothing else imports this file. If a second caller appears, the
- * governance guarantee in binding constraint 2 is gone.
+ * The ONLY module permitted to speak to Cube, and the only one that may name it.
+ * ADR-006's "one door" is a MODULE boundary, not a process boundary: apps/api and
+ * apps/render both import the facade, and nothing else imports this file. If a second
+ * caller appears, the governance guarantee in binding constraint 2 is gone. That is no
+ * longer held by convention -- tools/boundary-lint.ts fails the build on it (TW-170).
+ *
+ * Transport configuration is read here, from engine-config.ts, rather than passed in.
+ * Every function below therefore takes the security context and nothing else about the
+ * connection: there is no signature into which a caller could inject a different engine.
  */
-export interface CubeClientOptions {
-  url: string;
-  apiSecret: string;
-}
-
-export interface CubeResultSet {
+export interface EngineResultSet {
   data: Record<string, unknown>[];
   annotation: unknown;
   lastRefreshTime?: string;
@@ -45,7 +46,8 @@ const MAX_WAIT_MS = 30_000;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-async function post(opts: CubeClientOptions, path: string, body: unknown, ctx: SecurityContext): Promise<unknown> {
+async function post(path: string, body: unknown, ctx: SecurityContext): Promise<unknown> {
+  const opts = engineEndpoint();
   const deadline = Date.now() + MAX_WAIT_MS;
   let attempt = 0;
 
@@ -84,15 +86,14 @@ async function post(opts: CubeClientOptions, path: string, body: unknown, ctx: S
 }
 
 /** Generated SQL WITHOUT executing it -- FR-CON-02's "how is this calculated?". */
-export async function cubeSql(opts: CubeClientOptions, query: unknown, ctx: SecurityContext): Promise<string> {
-  const out = (await post(opts, '/sql', { query }, ctx)) as { sql?: { sql?: [string, unknown[]] } };
+export async function cubeSql(query: unknown, ctx: SecurityContext): Promise<string> {
+  const out = (await post('/sql', { query }, ctx)) as { sql?: { sql?: [string, unknown[]] } };
   const pair = out.sql?.sql;
   return Array.isArray(pair) ? String(pair[0]) : '';
 }
 
-export async function cubeLoad(opts: CubeClientOptions, query: unknown, ctx: SecurityContext): Promise<CubeResultSet> {
+export async function cubeLoad(query: unknown, ctx: SecurityContext): Promise<EngineResultSet> {
   const out = (await post(
-    opts,
     '/load',
     // ADR-003 D5: Cube's own caching is bypassed so OUR cache is the only cache.
     // Two caches with independent invalidation is how stale numbers get served.
@@ -108,7 +109,17 @@ export async function cubeLoad(opts: CubeClientOptions, query: unknown, ctx: Sec
   };
 }
 
-export async function cubeMeta(opts: CubeClientOptions, ctx: SecurityContext): Promise<unknown> {
+/**
+ * The engine's raw metadata document. INTERNAL: `catalog.ts` maps it to Tailwind's own
+ * shape, and that mapped shape is what leaves the package. Returning `unknown` is safe
+ * exactly as far as this file -- the one place that is allowed to know what Cube emits.
+ *
+ * Cube answers /meta scoped to the JWT we mint, so the document already reflects THIS
+ * user's member-level policy. That is why it takes a security context and why the
+ * mapping must never be cached across requests (FR-SEM-15).
+ */
+export async function cubeMeta(ctx: SecurityContext): Promise<unknown> {
+  const opts = engineEndpoint();
   const res = await fetch(`${opts.url}/meta`, { headers: { Authorization: mintToken(opts.apiSecret, ctx) } });
   if (!res.ok) throw new Error(`Cube /meta failed: HTTP ${res.status}`);
   return res.json();

@@ -1,5 +1,5 @@
 import type { ChartQuery, TimeDimensionRef } from '@tailwind/spec';
-import { cubeLoad, cubeSql, type CubeClientOptions, type CubeResultSet } from './cube-client.ts';
+import { cubeLoad, cubeSql, type EngineResultSet } from './cube-client.ts';
 import type { SecurityContext } from './security-context.ts';
 
 export type TimeDimension = TimeDimensionRef;
@@ -169,21 +169,25 @@ export function applyRowLimit(
   return { rows: data.length > rowLimit ? data.slice(0, rowLimit) : data, truncated };
 }
 
-/** Compile, then execute. The only path from a spec to a number. */
-export async function runQuery(
-  opts: CubeClientOptions,
-  query: SemanticQuery,
-  ctx: SecurityContext,
-): Promise<QueryResult> {
+/**
+ * Compile, then execute. The only path from a spec to a number.
+ *
+ * The security context comes FIRST, matching ADR-003 D4's `compileAndExecute(ctx, ...)`.
+ * There is no transport argument: the facade owns where the engine is (engine-config.ts),
+ * so there is no signature by which a caller could point this at a different engine or
+ * supply its own credential (TW-170).
+ */
+export async function runQuery(ctx: SecurityContext, query: SemanticQuery): Promise<QueryResult> {
   const { engineQuery, rowLimit, reportTruncation, engineLimit } = compile(query, ctx);
   // The SQL shown to a user must describe the result they actually got. The probe row
   // is our business, not theirs: showing `LIMIT 10001` above 10,000 rows in the
   // "how is this calculated?" panel (FR-CON-02) undermines the one surface whose whole
-  // job is to be trusted -- and the same string is what lands in the audit record.
+  // job is to be trusted. The audit record is the other half of that trade -- it needs
+  // what EXECUTED, so it takes `engineLimit` alongside this string (migration 003).
   const shownQuery = { ...engineQuery, limit: rowLimit };
-  const [result, sql]: [CubeResultSet, string] = await Promise.all([
-    cubeLoad(opts, engineQuery, ctx),
-    cubeSql(opts, shownQuery, ctx).catch(() => ''),
+  const [result, sql]: [EngineResultSet, string] = await Promise.all([
+    cubeLoad(engineQuery, ctx),
+    cubeSql(shownQuery, ctx).catch(() => ''),
   ]);
   return {
     ...applyRowLimit(result.data, rowLimit, reportTruncation),

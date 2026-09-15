@@ -1,15 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { runQuery, pocSystemContext, type CubeClientOptions } from '@tailwind/semantic';
+import { runQuery, pocSystemContext } from '@tailwind/semantic';
 import type { ChartQuery } from '@tailwind/spec';
 import { envelope } from './envelope.ts';
 import { loadDashboard } from './content.ts';
 import { health } from './db.ts';
 import { recordQuery } from './audit.ts';
-
-const cube: CubeClientOptions = {
-  url: process.env['CUBE_URL'] ?? 'http://localhost:7400/cubejs-api/v1',
-  apiSecret: process.env['CUBEJS_API_SECRET'] ?? 'dev-only-not-a-secret',
-};
 
 export function registerRoutes(app: FastifyInstance): void {
   app.get('/healthz', async (req, reply) => {
@@ -56,7 +51,7 @@ export function registerRoutes(app: FastifyInstance): void {
       const ctx = pocSystemContext();
       const started = Date.now();
       try {
-        const result = await runQuery(cube, req.body.query, ctx);
+        const result = await runQuery(ctx, req.body.query);
         recordQuery(
           {
             ctx,
