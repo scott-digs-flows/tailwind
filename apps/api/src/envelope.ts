@@ -1,6 +1,6 @@
 import type { CacheOutcome, SecurityContext } from '@tailwind/semantic';
 import { bundleVersion, securityContextDigest } from '@tailwind/semantic';
-import { freshnessReport, type FreshnessClass } from '@tailwind/spec';
+import { freshnessReport, type FreshnessClass, type Notice, type NoticeCode } from '@tailwind/spec';
 
 /**
  * Both re-exported rather than redeclared. They were local unions here, identical to
@@ -19,21 +19,14 @@ export type { CacheOutcome, FreshnessClass };
  * degraded result. Severity >= 'warn' MUST be rendered by any surface showing the
  * data -- including the headless renderer, or a CI screenshot on a PR is a cleaner
  * picture than the user's, and the evidence pipeline lies in the product's favour.
+ *
+ * Moved to `packages/spec` by TW-156 and re-exported here, for exactly the reason
+ * stated above about `CacheOutcome` and `FreshnessClass`. The amendment's second rule
+ * is that `packages/charts` takes notices as an input, and the adapter cannot import
+ * this module -- so producer and renderer had no shared name for a closed enum they
+ * must agree on member-by-member. Two copies of it would typecheck and drift.
  */
-export type NoticeCode =
-  | 'row_limit_reached'
-  | 'served_stale'
-  | 'partial_failure'
-  | 'empty_by_policy'
-  | 'query_timeout'
-  | 'cache_degraded';
-
-export interface Notice {
-  code: NoticeCode;
-  severity: 'info' | 'warn' | 'error';
-  /** Plain language, for a person looking at a chart. Not an error code. */
-  message: string;
-}
+export type { Notice, NoticeCode };
 
 /**
  * ADR-006 D3. These fields are not decoration:
