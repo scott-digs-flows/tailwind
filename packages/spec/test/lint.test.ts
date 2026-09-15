@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lintBundle } from '../src/index.ts';
-import { VALID_CUBE } from './fixtures.ts';
+import { VALID_CUBE, VALID_DASHBOARD } from './fixtures.ts';
 
 function bundle(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'tw-lint-'));
@@ -118,4 +118,56 @@ test('documentation in the reviewed tree is not a stray file', () => {
   const root = bundle({ 'README.md': '# how this model works', 'semantic/cubes/NOTES.md': 'context' });
   assert.deepEqual(lintBundle(root, join(root, 'MISSING')).map((f) => f.rule), [],
     'markdown is documentation; .txt stays flagged, per the stray-file test above');
+});
+
+/**
+ * FR-FRESH-04 / ADR-004 D4. These assert BOTH halves of D4, which is the part that is
+ * easy to break by "fixing" the schema: `operational` stays expressible in the format —
+ * `validate.test.ts` covers that — and the bundle lint is what refuses to merge one.
+ */
+const dashboardWith = (cls: string): string => VALID_DASHBOARD.replace('class: standard', `class: ${cls}`);
+
+test('a dashboard declaring `operational` is refused — the class the POC does not ship', () => {
+  const root = bundle({ 'dashboards/live.dashboard.yml': dashboardWith('operational') });
+  const found = lintBundle(root, join(root, 'MISSING'));
+  assert.deepEqual(found.map((f) => f.rule), ['operational-not-in-poc']);
+  const message = found[0]?.message ?? '';
+  // The two references an author needs in order to act: the requirement that gives the
+  // decision to the data team, and the scope section that says why it is deferred
+  // rather than forbidden. Missing either sends the reader hunting through the docs.
+  assert.match(message, /FR-FRESH-04/);
+  assert.match(message, /08-poc-scope\.md §7/);
+  // Tone, asserted rather than left to review, because tone is the whole point of this
+  // message. `08-poc-scope.md §4` makes a genuine request for this class a trigger to
+  // reopen §7, so the message must route the author to the people who decide. One that
+  // reads like "invalid value" gets worked around; one that reads "never" gets deleted
+  // as wrong the day §4 fires, and the gate goes with it.
+  assert.match(message, /data team/);
+  assert.doesNotMatch(message, /\bnever\b/i);
+});
+
+test('`batch` and `standard` still pass — this refuses one class, not the feature', () => {
+  for (const cls of ['batch', 'standard']) {
+    const root = bundle({ 'dashboards/d.dashboard.yml': dashboardWith(cls) });
+    assert.deepEqual(lintBundle(root, join(root, 'MISSING')).map((f) => f.rule), [], cls);
+  }
+});
+
+/**
+ * FR-FRESH-01 lets a chart override the class downward, and §7's cost argument applies
+ * to one chart exactly as it does to a whole page. The dashboard schema permits no
+ * chart-level `freshness` block yet, so this cannot arrive through `tailwind validate`
+ * today — it is asserted so that the gate does not quietly become half a gate on the
+ * day the override lands.
+ */
+test('a chart-level override to `operational` is refused too, and names the chart', () => {
+  const root = bundle({
+    'dashboards/live.dashboard.yml': VALID_DASHBOARD.replace(
+      '    type: kpi\n',
+      '    type: kpi\n    freshness:\n      class: operational\n',
+    ),
+  });
+  const found = lintBundle(root, join(root, 'MISSING')).filter((f) => f.rule === 'operational-not-in-poc');
+  assert.equal(found.length, 1);
+  assert.match(found[0]?.message ?? '', /charts\[revenue_kpi\]\.freshness\.class/);
 });

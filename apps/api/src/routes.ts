@@ -78,8 +78,18 @@ export function registerRoutes(app: FastifyInstance): void {
         // Both governed inputs are resolved server-side, from two different sources of
         // truth, and neither is readable off the request: the security context from the
         // principal (FR-SEM-14/15), the query and its freshness class from the published
-        // artifact in git (FR-FRESH-01/04, ADR-006 amendment B2). A `freshness` field in
+        // artifact in git (FR-FRESH-01, ADR-006 amendment B2). A `freshness` field in
         // the body reaches no parameter of anything below -- see `queries.ts`.
+        //
+        // What this route does NOT do is judge the class it was handed. Nothing here
+        // refuses `operational`; an artifact declaring it would simply execute at ttl 0,
+        // every load billed to the warehouse. The refusal is the `operational-not-in-poc`
+        // rule in `lintBundle` (`packages/spec/src/lint.ts`), which `tailwind validate
+        // content` and CI run over the merged tree, so such an artifact cannot reach
+        // `content/` in the first place (TW-180, ADR-004 D4). FR-FRESH-04's actual
+        // approval flow -- projected cost surfaced, data team signs off -- is TW-128 at
+        // M3 and is not built. Read the line below as "the class is whatever review let
+        // through", not as "the server would stop a bad one".
         const governed = resolveQuery(ctx, req.body);
         const result = await runQuery(ctx, governed.query, governed.freshness);
         recordQuery(

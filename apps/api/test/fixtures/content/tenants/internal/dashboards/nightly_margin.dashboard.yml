@@ -7,10 +7,13 @@
 # pass just as happily if the artifact were never read at all.
 #
 # It does NOT declare `operational`, which is the other class a test here might reach
-# for: ADR-004 D4 / T-115 make the validator reject that class in a reviewed artifact
-# until FR-FRESH-04's approval gate exists, and this file is read through that same
-# validator. A fixture that becomes invalid the week T-115 lands is a trap for whoever
-# lands it.
+# for. Since TW-180 the `operational-not-in-poc` rule in `lintBundle` refuses that class
+# in reviewed content until FR-FRESH-04's approval flow exists (TW-128). Note what would
+# and would not catch it HERE: this file is read through `parseSpec`, which by ADR-004 D4
+# still accepts the class, and the bundle lint never runs over a test-only content root.
+# So an `operational` fixture would run at ttl 0 and nothing would say so -- which is
+# exactly the shape of the hole TW-180 closed for real content, and the reason not to
+# open a private one.
 spec_version: 1
 name: nightly_margin
 title: Nightly margin

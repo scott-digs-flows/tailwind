@@ -97,6 +97,69 @@ function scanKeys(node: unknown, path: string, add: (rule: string, msg: string) 
   }
 }
 
+/**
+ * FR-FRESH-04 / ADR-004 D4 — the POC's one gate in front of the expensive class.
+ *
+ * D4 splits this deliberately and the split is easy to undo by accident: `operational`
+ * stays LEGAL in `schemas/v1/dashboard.json`, so the format can express it from commit
+ * one and the cache API can take the class (FR-FRESH-02) with no later re-cut, while a
+ * policy over merged content refuses to ship one. Tightening the schema enum instead
+ * would make the class unexpressible and is the "fix" to resist.
+ *
+ * Why it belongs in the bundle lint rather than in per-file validation is also why it
+ * has teeth: this is a statement about what the repository may contain, checked by
+ * `tailwind validate content` and by CI over the merged tree, at the same moment a
+ * reviewer is looking at the diff.
+ *
+ * What makes it load-bearing rather than belt-and-braces: since TW-167 the executed
+ * class comes from the artifact and from nothing else, so no downstream check can talk
+ * an `operational` dashboard back down — `cachePolicyFor('operational')` is ttl 0, and
+ * `packages/semantic/test/cache.test.ts` asserts the cache genuinely refuses to serve
+ * it. Every viewer and every refresh reaches the warehouse. This is the only thing
+ * standing between an author and that bill.
+ */
+const OPERATIONAL = 'operational';
+
+/**
+ * Deferred, not forbidden — and the difference has to survive contact with a reader in
+ * a hurry. `08-poc-scope.md §4` lists a genuine request for an operational dashboard as
+ * a trigger that reopens §7, so this message points at the people who decide rather
+ * than closing the subject. A message that read "never" would be wrong the first time
+ * §4 fires and would be deleted along with the rule; one that read "invalid value"
+ * would send an author looking for a way around a typo.
+ */
+const OPERATIONAL_REFUSAL =
+  `\`${OPERATIONAL}\` is not a freshness class the POC ships (FR-FRESH-04, 08-poc-scope.md §7): ` +
+  'near-live numbers cannot be cached, so the warehouse cost grows with every viewer and every ' +
+  'refresh, and that call belongs to the data team rather than to the artifact\'s author. Declare ' +
+  '`standard` (<= 30 min) or `batch` (<= 24 h) here — and if you genuinely need near-live data, ' +
+  'ask the data team rather than routing around this: 08-poc-scope.md §4 treats a real request as ' +
+  'a reason to reopen §7, not as a refusal.';
+
+/**
+ * Every site in a dashboard that declares a class, top level and per chart.
+ *
+ * The chart branch reads a block the dashboard schema does not permit today, so it
+ * cannot fire through `tailwind validate` — but FR-FRESH-01 gives charts a downward
+ * override, and "downward" from `standard` means towards this class. Reading the
+ * document rather than the schema means the day that override lands the gate does not
+ * quietly become half a gate, which is the failure mode D4 has already had once.
+ */
+function freshnessSites(doc: unknown): { where: string; cls: unknown }[] {
+  if (doc === null || typeof doc !== 'object') return [];
+  const dashboard = doc as {
+    freshness?: { class?: unknown };
+    charts?: { id?: unknown; freshness?: { class?: unknown } }[];
+  };
+  const sites = [{ where: 'freshness.class', cls: dashboard.freshness?.class }];
+  (Array.isArray(dashboard.charts) ? dashboard.charts : []).forEach((chart, i) => {
+    if (chart === null || typeof chart !== 'object') return;
+    const label = typeof chart.id === 'string' ? chart.id : String(i);
+    sites.push({ where: `charts[${label}].freshness.class`, cls: chart.freshness?.class });
+  });
+  return sites;
+}
+
 interface MetricSite {
   name: string;
   file: string;
@@ -186,6 +249,12 @@ export function lintBundle(root: string, codeownersPath = 'CODEOWNERS'): Finding
     }
     scanKeys(doc, '', add);
     if (kind === 'cube') parsedCubes.push({ file: shown, doc });
+
+    if (kind === 'dashboard') {
+      for (const { where, cls } of freshnessSites(doc)) {
+        if (cls === OPERATIONAL) add('operational-not-in-poc', `${where}: ${OPERATIONAL_REFUSAL}`);
+      }
+    }
 
     // ADR-003 D2: sql_table is preferred; a raw `sql:` source is permitted only in
     // files the data team owns. CODEOWNERS is the mechanism, so this is a flag for a
