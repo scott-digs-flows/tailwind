@@ -199,6 +199,15 @@ const CONTEXT_FREE_EXPORTS = new Map<string, string>([
   ['resolveSecurityContext', 'produces the context; it cannot require one'],
   ['pocSystemContext', 'produces the POC context; same reason'],
   ['applyRowLimit', 'pure post-processing of rows already returned under a context'],
+  // The cache pair. Both take a CacheKey, and `CacheKey` is brand-typed: `cacheKeyFor`
+  // is the only way to obtain one and it requires a context, which it folds in as
+  // `securityContextDigest`. So the context is not missing from these two, it is
+  // already inside their argument -- and enforced by the type system rather than by
+  // this list. Re-requiring it here would let a caller pass a context that disagrees
+  // with the one in the key, which is worse than not asking.
+  ['cacheKeyString', 'formats a CacheKey, which is brand-typed and already carries the context digest'],
+  ['cacheLookupFor', 'pairs an already-context-bearing CacheKey with a freshness policy'],
+  ['bundleVersion', 'reads the published artifact version from the environment; reaches no query and no row'],
 ]);
 
 /**
