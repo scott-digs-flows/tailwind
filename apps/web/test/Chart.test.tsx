@@ -27,7 +27,7 @@ const settle = async (req: PendingRequest, body: unknown, status = 200): Promise
 
 test('a failed query says so in place, with a reason and a retry, and shows no number', async () => {
   const { requests } = stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
 
   await settle(
     requests[0]!,
@@ -50,7 +50,7 @@ test('a failed query says so in place, with a reason and a retry, and shows no n
 
 test('a transport failure still produces a plain-language reason, not "Failed to fetch"', async () => {
   const { requests } = stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
 
   await act(async () => {
     requests[0]!.fail();
@@ -63,7 +63,7 @@ test('a transport failure still produces a plain-language reason, not "Failed to
 
 test('a retry re-runs the query and replaces the failure with the number', async () => {
   const { requests } = stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
   await settle(requests[0]!, failedEnvelope('This chart took too long to return.'), 504);
 
   await act(async () => {
@@ -80,7 +80,7 @@ test('a retry re-runs the query and replaces the failure with the number', async
 
 test('a late answer from the attempt that failed cannot overwrite the retry', async () => {
   const { requests } = stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
   await settle(requests[0]!, failedEnvelope('This chart took too long to return.'), 504);
   await act(async () => {
     screen.getByRole('button', { name: 'Try again' }).click();
@@ -96,7 +96,7 @@ test('a late answer from the attempt that failed cannot overwrite the retry', as
 
 test('no rows says there is no data for these filters rather than drawing a zero', async () => {
   const { requests } = stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
 
   await settle(requests[0]!, okEnvelope([]));
 
@@ -107,7 +107,7 @@ test('no rows says there is no data for these filters rather than drawing a zero
 
 test('a result emptied by access policy says something different', async () => {
   const { requests } = stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
 
   await settle(
     requests[0]!,
@@ -119,7 +119,7 @@ test('a result emptied by access policy says something different', async () => {
 
 test('a chart that has not answered yet is visibly loading and shows no number', () => {
   stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
 
   const status = screen.getByRole('status');
   expect(status.getAttribute('aria-busy')).toBe('true');
@@ -140,7 +140,7 @@ test('a chart that has not answered yet is visibly loading and shows no number',
 test('changing the filters clears the previous number the moment the new query starts', async () => {
   const { requests } = stubFetch();
   const chart = kpiChart('revenue', 'sales');
-  const { rerender } = render(<ChartCard chart={chart} freshness="standard" />);
+  const { rerender } = render(<ChartCard chart={chart} dashboard="sales_overview" freshness="standard" />);
 
   await settle(requests[0]!, okEnvelope([{ 'sales.revenue': 1234 }]));
   expect(screen.getByText('1,234')).toBeTruthy();
@@ -149,7 +149,7 @@ test('changing the filters clears the previous number the moment the new query s
   const filtered = kpiChart('revenue', 'sales', [
     { member: 'sales.region', operator: 'equals', values: ['EMEA'] },
   ]);
-  rerender(<ChartCard chart={filtered} freshness="standard" />);
+  rerender(<ChartCard chart={filtered} dashboard="sales_overview" freshness="standard" />);
 
   expect(screen.queryByText('1,234')).toBeNull();
   expect(aNumberIsOnScreen()).toBe(false);
@@ -167,10 +167,10 @@ test('changing the filters clears the previous number the moment the new query s
 test('changing the freshness class is a new question too', async () => {
   const { requests } = stubFetch();
   const chart = kpiChart('revenue', 'sales');
-  const { rerender } = render(<ChartCard chart={chart} freshness="standard" />);
+  const { rerender } = render(<ChartCard chart={chart} dashboard="sales_overview" freshness="standard" />);
   await settle(requests[0]!, okEnvelope([{ 'sales.revenue': 1234 }]));
 
-  rerender(<ChartCard chart={chart} freshness="operational" />);
+  rerender(<ChartCard chart={chart} dashboard="sales_overview" freshness="operational" />);
 
   expect(screen.queryByText('1,234')).toBeNull();
   expect(requests).toHaveLength(2);
@@ -179,7 +179,7 @@ test('changing the freshness class is a new question too', async () => {
 
 test('a truncation notice is still rendered above the number it qualifies', async () => {
   const { requests } = stubFetch();
-  render(<ChartCard chart={kpiChart('revenue', 'sales')} freshness="standard" />);
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
 
   await settle(
     requests[0]!,

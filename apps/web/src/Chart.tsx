@@ -144,10 +144,23 @@ function ChartBody({ chart, state }: { chart: DashboardChart; state: ChartState 
 
 export function ChartCard({
   chart,
+  dashboard,
   freshness,
   onStateChange,
 }: {
   chart: DashboardChart;
+  /**
+   * The published dashboard this chart belongs to. Sent INSTEAD of the query, because
+   * the server reads both the query and its class out of git (TW-167) -- this tab's
+   * copy is as old as the page load, and a governed value a client supplies is not
+   * governed.
+   */
+  dashboard: string;
+  /**
+   * The class the dashboard DECLARES. Not sent to the server, which resolves its own
+   * (TW-167); it is here because it is part of the identity of the question on screen,
+   * so a republished dashboard cannot have an old answer rendered under a new class.
+   */
   freshness: string;
   /**
    * How the dashboard learns that this chart failed. A dashboard is N independent
@@ -169,7 +182,7 @@ export function ChartCard({
 
   useEffect(() => {
     let live = true;
-    runChartQuery(chart, freshness)
+    runChartQuery(dashboard, chart)
       .then((env) => live && dispatch({ type: 'resolved', requestId, envelope: env }))
       .catch((e: unknown) => {
         if (!live) return;
@@ -189,7 +202,7 @@ export function ChartCard({
     return () => {
       live = false;
     };
-  }, [requestId, chart, freshness]);
+  }, [requestId, chart, dashboard, freshness]);
 
   // Reported from an effect rather than during render: telling a parent about our state
   // while it is rendering its own is how React ends up re-rendering forever.
@@ -248,6 +261,10 @@ export function ChartCard({
           the next one is a stale claim wearing a fresh timestamp (FR-FRESH-03). */}
       {meta !== null && (
         <footer style={{ fontSize: '.62rem', opacity: 0.5, marginTop: '.4rem' }}>
+          {/* The class the server EXECUTED under, not the one this page loaded with.
+              Since TW-167/TW-168 those are the same value by construction -- and on the
+              day they are not (a bundle republished under the tab), the footer should
+              say what produced the number in front of the reader. */}
           {meta.freshness.class} · cache {meta.cache} ·{' '}
           {/* FR-FRESH-03: say "unknown" rather than rendering the request time as
               though it were the data's as-of. */}

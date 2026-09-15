@@ -103,8 +103,17 @@ export interface QueryData {
   sql: string;
 }
 
-export const runChartQuery = (chart: DashboardChart, freshness: string): Promise<Envelope<QueryData>> =>
+/**
+ * Ask for a chart by NAME, not by sending its query back.
+ *
+ * The server reads both the query and its freshness class out of the published artifact
+ * (TW-167). The browser holds a copy of that dashboard, so it could send either -- and
+ * that is exactly why it must not: a governed value a client supplies is not governed,
+ * and the copy in this tab is as old as whenever the page loaded. What renders is then
+ * what git says, which is the claim the provenance badge is making.
+ */
+export const runChartQuery = (dashboard: string, chart: DashboardChart): Promise<Envelope<QueryData>> =>
   call<QueryData>('/v1/queries', {
     method: 'POST',
-    body: JSON.stringify({ query: chart.query, freshness }),
+    body: JSON.stringify({ chart: { dashboard, id: chart.id } }),
   });
