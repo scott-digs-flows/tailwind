@@ -58,6 +58,7 @@ REQ_RE = re.compile(r"\b(?:FR|NFR)-[A-Z0-9]+-\d+\b")
 REQ_ROW_RE = re.compile(r"^\|\s*((?:FR|NFR)-[A-Z0-9]+-\d+)\s*\|\s*([MSCW])\s*\|")
 ADR_RE = re.compile(r"\bADR-\d+\b")
 Q_RE = re.compile(r"\bQ-\d+\b")
+ACCEPTANCE_RE = re.compile(r"^##+\s*Acceptance\s*$\n+\s*[-*+]\s*\S", re.M)
 LEGACY_RE = re.compile(r"^legacy_id:\s*(\S+)\s*$", re.M)
 REQIDS_RE = re.compile(r"^req_ids:\s*(.+?)\s*$", re.M)
 
@@ -66,6 +67,11 @@ SIZES = {"size-S", "size-M", "size-L", "size-XL"}
 TYPES = {"type-feature", "type-spike", "type-adr", "type-infra", "type-discovery", "type-chore"}
 ROLES = {"role-product", "role-architect", "role-fullstack", "role-data-team", "role-security"}
 PRIORITIES = {"Highest", "High", "Medium", "Low"}
+# The TW board's statuses. Code Review and Quality Review are both in JIRA's
+# "In Progress" CATEGORY, so for every rule that asks "has this started?" they count as
+# started -- a ticket in review is work someone has begun and cannot be sitting behind an
+# unfinished blocker, and an XL in review was never split.
+STARTED = {"In Progress", "Code Review", "Quality Review"}
 # type-chore and type-infra are the only routine exceptions to traceability.
 TRACE_EXEMPT = {"type-chore", "type-infra"}
 
@@ -152,6 +158,62 @@ def adf_code_blocks(node, out: list[str]) -> None:
             adf_code_blocks(node.get("content"), out)
 
 
+def full_text(description) -> str:
+    """The whole description as MARKDOWN, for checks that read prose not the meta block.
+
+    ADF has no `##` and no `-`: a heading is a node type and a bullet is a nesting. So
+    this RENDERS the structure back to markdown rather than only concatenating the text,
+    and the checks then use one pattern for both shapes the API can hand us.
+
+    That distinction is not theoretical. The first version of this function returned bare
+    text, which made the acceptance-criteria check pass on every markdown description the
+    MCP produced and fail on every real ADF one -- a check that is green in testing and
+    red in production, or the reverse, depending only on which client fetched the issue.
+    """
+    if description is None:
+        return ""
+    if isinstance(description, str):
+        return description
+    out: list[str] = []
+
+    def inline(node) -> str:
+        if isinstance(node, list):
+            return "".join(inline(n) for n in node)
+        if isinstance(node, dict):
+            if node.get("type") == "text":
+                return node.get("text", "")
+            return inline(node.get("content") or [])
+        return ""
+
+    def block(node, depth: int = 0) -> None:
+        if isinstance(node, list):
+            for n in node:
+                block(n, depth)
+            return
+        if not isinstance(node, dict):
+            return
+        kind = node.get("type")
+        if kind == "heading":
+            level = int((node.get("attrs") or {}).get("level", 1))
+            out.append(f"\n{'#' * level} {inline(node.get('content') or [])}\n")
+        elif kind == "paragraph":
+            out.append(f"\n{inline(node.get('content') or [])}\n")
+        elif kind in ("bulletList", "orderedList"):
+            for item in node.get("content") or []:
+                out.append(f"\n{'  ' * depth}- {inline(item.get('content') or []).strip()}")
+                for child in item.get("content") or []:
+                    if child.get("type") in ("bulletList", "orderedList"):
+                        block(child, depth + 1)
+            out.append("\n")
+        elif kind == "codeBlock":
+            out.append(f"\n```\n{inline(node.get('content') or [])}\n```\n")
+        else:
+            block(node.get("content") or [], depth)
+
+    block(description)
+    return "".join(out)
+
+
 def meta_text(description) -> str:
     """The contents of the tailwind-meta block, whatever format the API returned."""
     if description is None:
@@ -169,6 +231,7 @@ def normalise(issue: dict) -> dict:
     text = meta_text(f.get("description"))
     legacy = LEGACY_RE.search(text)
     reqs = REQIDS_RE.search(text)
+    body = full_text(f.get("description"))
     links = []
     for link in f.get("issuelinks") or []:
         name = (link.get("type") or {}).get("name")
@@ -185,6 +248,7 @@ def normalise(issue: dict) -> dict:
         "labels": f.get("labels") or [],
         "parent": ((f.get("parent") or {}).get("key")),
         "links": links,
+        "body": body,
         "legacy_id": legacy.group(1) if legacy else None,
         "req_ids": (reqs.group(1).split() if reqs else []),
     }
@@ -272,6 +336,13 @@ def main() -> int:
             err(f"{k}: priority {t['priority']!r} not in {sorted(PRIORITIES)}")
         if not t["summary"].strip():
             err(f"{k}: empty summary")
+        # Rule from 05-ways-of-working.md's Definition of Ready: a ticket without an
+        # observable acceptance criterion is not pickup-ready. The CSV validator checked
+        # the `acceptance` column was non-empty; the port dropped it, so every ticket
+        # passed regardless. A heading with nothing under it is the same failure wearing
+        # a heading.
+        if not ACCEPTANCE_RE.search(t["body"]):
+            err(f"{k}: no '## Acceptance' section with at least one criterion")
 
         # 4. every ticket traces to a requirement, ADR or open question
         ttype = next(iter(labels & TYPES), None)
@@ -294,13 +365,16 @@ def main() -> int:
     for cycle in detect_cycles(deps):
         err(f"dependency cycle: {' -> '.join(cycle)}")
 
-    # 7. nothing In Progress behind an open blocker
-    status = {t["key"]: t["status"] for t in tickets}
+    # 7. nothing started behind an open blocker.
+    # Built from EVERY issue, Epics included: check 5 accepts an Epic as a blocker, so
+    # looking status up in a tickets-only dict made an Epic blocker read as unfinished
+    # forever -- even once it was Done -- and the error could never be cleared.
+    status = {i["key"]: i["status"] for i in issues}
     for t in tickets:
-        if t["status"] == "In Progress":
+        if t["status"] in STARTED:
             open_deps = [d for d in deps[t["key"]] if status.get(d) != "Done"]
             if open_deps:
-                err(f"{t['key']}: In Progress but blocked by unfinished {open_deps}")
+                err(f"{t['key']}: {t['status']} but blocked by unfinished {open_deps}")
 
     # 8. every Must/Should requirement has at least one ticket
     for req, moscow in sorted(req_priorities.items()):
@@ -311,7 +385,7 @@ def main() -> int:
     # Only STARTED work breaches this. A finished XL is history -- erroring on it forever
     # would make the check impossible to get back to green, which is how a gate dies.
     for t in tickets:
-        if "size-XL" in t["labels"] and t["status"] == "In Progress":
+        if "size-XL" in t["labels"] and t["status"] in STARTED:
             err(f"{t['key']}: XL tickets must be split before work starts")
 
     # warnings

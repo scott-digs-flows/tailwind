@@ -13,7 +13,7 @@ Everything in this file was read off the live site on 2026-09-14. Re-verify with
 | Project style | **Team-managed** (`simplified: true`) — this is why the mapping below looks the way it does |
 | Issue types | Epic `10007` · Story `10008` · Task `10010` · Bug `10009` · Subtask `10006` |
 | Link types | Blocks `10000` · Cloners `10001` · Duplicate `10002` · Relates `10003` |
-| Statuses | **Only three**: To Do (transition `11`) · In Progress (`21`) · Done (`31`). Transition ids are global. |
+| Statuses | To Do (transition `11`) · In Progress (`21`) · **Code Review (`2`)** · **Quality Review (`3`)** · Done (`31`). Transition ids are global. Code Review and Quality Review are both in JIRA's *In Progress* category, so anything asking "has this started?" counts them as started. |
 | Epic keys | E-00 `TW-1` · E-01 `TW-3` · E-02 `TW-4` · E-03 `TW-5` · E-04 `TW-6` · E-05 `TW-7` · E-06 `TW-8` · E-07 `TW-9` · E-08 `TW-10` · E-09 `TW-11` · E-10 `TW-12` · E-11 `TW-13` |
 
 ## Gotchas, all four confirmed against the live site
@@ -31,8 +31,11 @@ bullets** for acceptance criteria. (Anything needing real checkboxes has to be w
 **3. `&` in a summary is HTML-escaped** and stored literally as `&amp;`. Use "and", or check the
 value that comes back.
 
-**4. There are only three statuses.** No In Review column exists, so `review` is In Progress plus
-a `review` label until someone adds the column.
+**4. Statuses were added on 2026-09-15.** The board originally had only To Do / In Progress /
+Done, which meant a ticket with an open PR had to sit in In Progress — every implementer hit it,
+and two transitioned to Done before catching that Done falsely claims the Definition of Done.
+Code Review and Quality Review now exist. Do **not** use a `review` label; that was the
+workaround for their absence.
 
 ## Ticket → JIRA
 
@@ -100,7 +103,7 @@ ships `To Do / In Progress / Done` and Scott may have added columns.
 |---|---|
 | `todo` | To Do |
 | `in-progress` | In Progress |
-| `review` | In Review if that column exists, else In Progress + label `review` |
+| `review` | **Code Review** while a PR is open; **Quality Review** for verification after review |
 | `done` | Done |
 | `blocked` | Keep the current status and set `customfield_10021` (Flagged) to `Impediment` |
 

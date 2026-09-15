@@ -63,6 +63,7 @@ export function registerRoutes(app: FastifyInstance): void {
             view: req.body.query.view,
             metrics: req.body.query.metrics,
             sql: result.sql,
+            engineLimit: result.engineLimit,
             rowCount: result.rows.length,
             durationMs: Date.now() - started,
             traceId: req.id,

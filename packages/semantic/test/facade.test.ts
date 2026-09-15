@@ -52,31 +52,72 @@ test('a row cap is always applied (FR-ADM-03)', () => {
   assert.equal(engineQuery['limit'], DEFAULT_ROW_LIMIT + 1);
 });
 
-test('an author asking for fewer rows is not probed and never warned (FR-ADM-03)', () => {
-  const { engineQuery, rowLimit, capBinds } = compile(
-    { view: 'sales', metrics: ['sales.revenue'], limit: 10 },
+test('an ORDERED Top-N is not probed and never warned (FR-ADM-03)', () => {
+  const { engineQuery, rowLimit, reportTruncation } = compile(
+    {
+      view: 'sales',
+      metrics: ['sales.revenue'],
+      limit: 10,
+      order: [{ member: 'sales.revenue', dir: 'desc' }],
+    },
     ctx,
   );
   assert.equal(rowLimit, 10);
-  assert.equal(capBinds, false);
-  // No probe row: a "Top 10" chart got exactly what it asked for. Probing would buy a
-  // row we have nothing to say about, and reporting it would put a warning on a chart
-  // that is behaving correctly -- which teaches people to ignore warnings.
+  assert.equal(reportTruncation, false);
+  // No probe row: the author picked the ten they meant. Reporting it would put a
+  // warning on a chart behaving correctly, every load -- which teaches people to
+  // ignore the channel.
   assert.equal(engineQuery['limit'], 10);
-  assert.deepEqual(applyRowLimit([{}, {}, {}], 10, capBinds), {
-    rows: [{}, {}, {}],
-    truncated: false,
-  });
+});
+
+test('an UNORDERED author limit is still truncation (FR-ADM-03, FR-VIZ-13)', () => {
+  // The case the first version of this rule missed entirely: `limit` with no `order`
+  // returns whichever rows the engine reaches first, and the author almost certainly
+  // believed that was all of them. Silent below the 10,000 cap is still silent.
+  const { engineQuery, rowLimit, reportTruncation } = compile(
+    { view: 'sales', metrics: ['sales.revenue'], limit: 500 },
+    ctx,
+  );
+  assert.equal(rowLimit, 500);
+  assert.equal(reportTruncation, true);
+  assert.equal(engineQuery['limit'], 501, 'must probe: there may be a 501st row');
+  const probed = Array.from({ length: 501 }, (_, i) => ({ i }));
+  const out = applyRowLimit(probed, 500, reportTruncation);
+  assert.equal(out.truncated, true);
+  assert.equal(out.rows.length, 500, 'the probe row is never data');
+});
+
+test('the probe row is dropped even when truncation is not reported', () => {
+  // Reporting is conditional; slicing never is. If these two ever diverge, an ordered
+  // Top-10 quietly renders eleven points.
+  const out = applyRowLimit([{}, {}, {}], 2, false);
+  assert.equal(out.rows.length, 2);
+  assert.equal(out.truncated, false);
 });
 
 test('an author asking for more than the cap is capped, and told (FR-ADM-03)', () => {
-  const { engineQuery, rowLimit, capBinds } = compile(
+  const { engineQuery, rowLimit, reportTruncation } = compile(
     { view: 'sales', metrics: ['sales.revenue'], limit: 999999 },
     ctx,
   );
   assert.equal(rowLimit, DEFAULT_ROW_LIMIT);
-  assert.equal(capBinds, true);
+  assert.equal(reportTruncation, true);
   assert.equal(engineQuery['limit'], DEFAULT_ROW_LIMIT + 1);
+});
+
+test('an ordered request ABOVE the cap is still capped and reported (FR-ADM-03)', () => {
+  // `order` only excuses a limit the author chose. The cap is not their choice.
+  const { rowLimit, reportTruncation } = compile(
+    {
+      view: 'sales',
+      metrics: ['sales.revenue'],
+      limit: 50000,
+      order: [{ member: 'sales.revenue', dir: 'desc' }],
+    },
+    ctx,
+  );
+  assert.equal(rowLimit, DEFAULT_ROW_LIMIT);
+  assert.equal(reportTruncation, true);
 });
 
 test('the probe row is dropped and reported, never plotted (FR-ADM-03)', () => {

@@ -199,9 +199,15 @@ Preserve the original `legacy_id` on the piece that kept the issue; new children
 
 ## Status changes
 
-`To Do` → `In Progress` → `In Review` → `Done`, with the Flagged/Impediment flag from anywhere.
+`To Do` → `In Progress` → `Code Review` → `Quality Review` → `Done`, with the Flagged/Impediment
+flag from anywhere.
 
-**Never move a ticket to In Progress while something that blocks it is open.** Flag it as an
+**`Done` means the Definition of Done** — merged, tested, observable, demonstrated. An open PR is
+`Code Review`, not `Done`. Moving a ticket to Done because the code is written is the most common
+way a board stops describing reality.
+
+**Never move a ticket to In Progress, Code Review or Quality Review while something that blocks
+it is open.** Flag it as an
 impediment instead. That is how Product finds out an answer is overdue, which is the entire point
 of tracking dependencies rather than just listing them.
 

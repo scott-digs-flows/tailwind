@@ -120,7 +120,7 @@ export function ChartCard({ chart, freshness }: { chart: DashboardChart; freshne
             style={{
               fontSize: '.7rem', margin: '0 0 .5rem', padding: '.35rem .5rem',
               borderRadius: 4, border: '1px solid var(--rule)',
-              color: n.severity === 'error' ? 'var(--bad)' : 'var(--fg)',
+              color: n.severity === 'error' ? 'var(--bad)' : 'var(--warn)',
               background: 'var(--ground)',
             }}
           >

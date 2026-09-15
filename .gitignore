@@ -9,3 +9,6 @@ infra/.data/
 # Python bytecode from running scripts/ directly
 __pycache__/
 *.pyc
+
+# Agent worktrees are local scratch, never part of the tree
+.claude/worktrees/
