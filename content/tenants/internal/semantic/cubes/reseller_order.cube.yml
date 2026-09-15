@@ -32,6 +32,7 @@ cubes:
             description: >-
               Freight charged ONCE per order. Summing it across order lines is the fan-out trap.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: order_count
         type: count
         meta:
@@ -40,6 +41,7 @@ cubes:
             owner: data-team
             description: Number of reseller orders.
             certification: certified
+            last_reviewed: '2026-08-13'
     dimensions:
       - name: sales_order_number
         sql: sales_order_number
@@ -51,6 +53,7 @@ cubes:
             owner: data-team
             description: Sales order number. The header key Cube deduplicates on.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: order_placed_at
         sql: order_placed_at
         type: time
@@ -60,9 +63,11 @@ cubes:
             owner: data-team
             description: When the order was placed.
             certification: certified
+            last_reviewed: '2026-08-13'
     meta:
       tailwind:
         spec_version: 1
         owner: data-team
         description: Reseller order headers, one row per sales order.
         certification: certified
+        last_reviewed: '2026-08-13'

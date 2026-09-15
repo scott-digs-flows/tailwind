@@ -78,18 +78,19 @@ cubes:
         owner: data-team
         description: AdventureWorks reseller dimension. One row per reseller.
         certification: certified
+        last_reviewed: '2026-08-26'   # the date a human last checked it, not today's date
     measures:
       - name: reseller_count        # globally unique across the whole bundle
         type: count
         meta:
-          tailwind: { spec_version: 1, owner: data-team, description: Number of resellers., certification: certified }
+          tailwind: { spec_version: 1, owner: data-team, description: Number of resellers., certification: certified, last_reviewed: '2026-08-26' }
     dimensions:
       - name: reseller_key
         sql: reseller_key
         type: number
         primary_key: true           # required on anything joined, or fan-out cannot be detected
         meta:
-          tailwind: { spec_version: 1, owner: data-team, description: Reseller surrogate key., certification: certified }
+          tailwind: { spec_version: 1, owner: data-team, description: Reseller surrogate key., certification: certified, last_reviewed: '2026-08-26' }
 ```
 
 **2 — the join, declared on the MANY side.** Many sales lines per reseller, so it goes on the fact:
@@ -129,8 +130,13 @@ cubes:
 ## Five rules that will bite you
 
 **1. `meta.tailwind` is required on the cube AND every measure AND every dimension.**
-`spec_version`, `owner`, `description`, `certification`. Verbose on purpose (FR-SEM-06) — and those
-descriptions are what the AI grounds on later, so a lazy one costs you twice.
+`spec_version`, `owner`, `description`, `certification`, `last_reviewed`. Verbose on purpose
+(FR-SEM-06) — and those descriptions are what the AI grounds on later, so a lazy one costs you
+twice. `last_reviewed` is an ISO date and it means *the day a human last checked this definition*,
+not the day you edited the file: `certified` with a two-year-old date is information, and a
+`certified` with no date at all is the thing the provenance badge cannot render. All five are
+required at every level, so a cube with perfect metadata and one bare measure still fails — and the
+message names the member, e.g. `/cubes[dim_product]/measures[product_count]/meta/tailwind`.
 
 **2. `spec_version` lives inside `meta.tailwind` on cubes and views — never at the top level.**
 Cube whitelists top-level keys and rejects anything else outright. Dashboards are Tailwind-native,
@@ -171,6 +177,7 @@ high. `validate` will pass it. Only conformance won't.
 |---|---|
 | `unknown key 'x' — not permitted by the Tailwind profile` | A Cube key we haven't vetted. Deliberate: an unreviewed key can't reach a reviewed artifact by accident. |
 | `Unexpected YAML key: spec_version` | Top-level `spec_version` on a cube or view. Move it into `meta.tailwind`. |
+| `must have required property 'last_reviewed'` | Rule 1. The path names the member — `/cubes[dim_product]/measures[product_count]` is that measure, not the fourth one you counted to. |
 | `metric 'x' is also defined in …` | Rule 3. Both sites are named; either can be the one that moves. |
 | `Can't find join path to join 'a','b'` | No path between two cubes, or two facts sharing a dimension where one lacks a direct join. Sometimes correct — "product cost by territory" has no single right answer, so Cube refuses rather than inventing one. |
 | `You requested hidden member: 'x'` | `member_level` missing from the policy, or the caller's groups match no policy at all. Default-deny working. |

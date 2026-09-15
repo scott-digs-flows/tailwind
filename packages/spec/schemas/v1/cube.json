@@ -53,7 +53,8 @@
             "spec_version",
             "owner",
             "description",
-            "certification"
+            "certification",
+            "last_reviewed"
           ],
           "properties": {
             "spec_version": {
@@ -76,7 +77,8 @@
             },
             "last_reviewed": {
               "type": "string",
-              "format": "date"
+              "format": "date",
+              "description": "FR-SEM-06 names four required fields and this is the fourth. Optional it is worthless: the provenance badge, the catalog and the AI context builder all read it, and a field that is present on some members and absent on others forces every one of those surfaces to render a shrug. `certification: certified` with no date is a claim with no expiry, which is the failure the badge exists to prevent. ISO 8601 calendar date (ajv-formats rejects 2026-02-30, not just the wrong shape)."
             },
             "replaced_by": {
               "type": "string"
@@ -84,7 +86,7 @@
           }
         }
       },
-      "description": "FR-SEM-06/07 ride in Cube's arbitrary meta, namespaced under `tailwind` so an Ossie vendor-extension hook stays available (ADR-004 D2)."
+      "description": "FR-SEM-06/07 ride in Cube's arbitrary meta, namespaced under `tailwind` so an Ossie vendor-extension hook stays available (ADR-004 D2). This object is the SINGLE enforcement point for FR-SEM-06 — cube.json, view.json and dashboard.json all $ref it, so the required list is stated once and every member kind inherits it. It stays in the schema rather than the T-115 bundle lint on purpose: the rule is entirely local to one member in one file, and TW-111 is the record of what happens when a rule lands on the wrong side of that line. Duplicating it into the lint would give the same requirement two sources of truth that could disagree, which is the same disease in the other direction."
     },
     "measure": {
       "type": "object",

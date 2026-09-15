@@ -79,9 +79,12 @@ test('YAML-1.1-ambiguous scalars are always quoted', () => {
 });
 
 test('dates are quoted — YAML 1.1 resolves them to a Date, 1.2 to a string', () => {
-  const out = format('cube', VALID_CUBE.replace('certification: certified',
-    "certification: certified\n    last_reviewed: 2026-08-12"));
+  // Unquote the fixture's own last_reviewed rather than splicing a second one in:
+  // the field is required on every member now (FR-SEM-06), so an author hand-writing
+  // a bare date is the realistic input, and it appears at three nesting levels here.
+  const out = format('cube', VALID_CUBE.replaceAll("last_reviewed: '2026-08-12'", 'last_reviewed: 2026-08-12'));
   assert.match(out, /last_reviewed: '2026-08-12'/);
+  assert.doesNotMatch(out, /last_reviewed: \d/, 'every occurrence, not just the first');
 });
 
 test('long prose becomes a block scalar so diffs stay line-wise', () => {

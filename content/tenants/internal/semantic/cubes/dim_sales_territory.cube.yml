@@ -11,6 +11,7 @@ cubes:
             owner: data-team
             description: Number of territories.
             certification: certified
+            last_reviewed: '2026-08-13'
     dimensions:
       - name: sales_territory_key
         sql: sales_territory_key
@@ -22,6 +23,7 @@ cubes:
             owner: data-team
             description: Territory surrogate key.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: region
         sql: sales_territory_region
         type: string
@@ -31,6 +33,7 @@ cubes:
             owner: data-team
             description: Territory region.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: country
         sql: sales_territory_country
         type: string
@@ -40,6 +43,7 @@ cubes:
             owner: data-team
             description: Territory country.
             certification: certified
+            last_reviewed: '2026-08-13'
       - name: territory_group
         sql: sales_territory_group
         type: string
@@ -49,9 +53,11 @@ cubes:
             owner: data-team
             description: Territory group.
             certification: certified
+            last_reviewed: '2026-08-13'
     meta:
       tailwind:
         spec_version: 1
         owner: data-team
         description: AdventureWorks sales territory dimension.
         certification: certified
+        last_reviewed: '2026-08-13'
