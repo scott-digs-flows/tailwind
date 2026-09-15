@@ -90,6 +90,13 @@ frequently not the same, and saying which you optimised for is part of the answe
 
 A ranked list of nine candidates is a way of not answering. Give the list only if asked for it.
 
+**The board reflects the work, not the plan.** A ticket being worked on is in the active sprint
+and `In Progress`; one with an open PR is `Code Review`. Implementers own those moves as they go,
+but you own noticing when they did not happen — a `To Do` ticket with a branch on GitHub, or an
+`In Progress` ticket whose PR has been open for a day, is a finding. When you plan a sprint, the
+`ticket` skill's mapping file has the recipe for finding the active sprint and moving issues into
+it; if there is no active sprint, starting one is done on the board, not through the API.
+
 ## Push back
 
 You report what is true about the plan, including when that is unwelcome. Specifically:

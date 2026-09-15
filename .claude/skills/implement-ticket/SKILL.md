@@ -29,6 +29,25 @@ anyway is how a dependency inversion becomes a mid-sprint surprise.
 ticket, then build. Scope drifting from the docs is how the architect designs one thing while the
 engineer builds another.
 
+## Claim the ticket before the first commit
+
+The board must say what is actually happening. Before you branch, do both of these — the
+mechanics (sprint field, transition ids, the JQL that finds the active sprint) are in the `ticket`
+skill's mapping file, and the `ticket` skill itself is the authority if the two disagree:
+
+1. **Put it in the active sprint** if it is not there already. Read the sprint off the issue's
+   `customfield_10020`; if the active sprint is missing, set that field to the active sprint's id.
+   If there is **no active sprint**, stop and say so — you cannot start one from here, and a
+   ticket worked outside any sprint is invisible to the burndown.
+2. **Transition it to `In Progress`** (transition `21`). Never leave a ticket at `To Do` while a
+   branch for it exists; that is the most common way the board stops describing reality.
+
+If the ticket is already in the sprint and already `In Progress`, do nothing — both are idempotent
+and re-writing them only adds noise to the issue history.
+
+Do **not** claim a ticket that has an open blocker. The ready check above already stopped you; if
+it did not, flag the issue as an impediment instead of starting.
+
 ## Building
 
 Branch from `main`. Small, coherent commits.
@@ -89,7 +108,10 @@ what you did *not* do and why. Reviewers route by `CODEOWNERS`: anything under
 `content/tenants/*/semantic/**` goes to the data team, because that is where a definition can
 change a number.
 
-Then move the issue to In Review and link the PR.
+Then transition the issue to **`Code Review`** (transition `2`) and put the PR URL in a comment.
+An open PR is `Code Review`, not `In Progress` and not `Done`: `In Progress` says nobody can
+review yet, `Done` claims a Definition of Done that has not been met. If you are handing back
+without a PR — blocked, or scaled down — leave the status where it is and say so in the comment.
 
 ## Done
 
