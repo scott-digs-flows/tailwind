@@ -9,10 +9,30 @@
  */
 module.exports = {
   /**
-   * ADR-003 Correction 1, and the sharpest trap in the whole integration: WITHOUT
-   * context_to_groups, `access_policy` matches nothing and Cube serves every row.
-   * It fails OPEN and silently. A fail-open security layer in a governance product is
-   * a contradiction in terms, so this function is load-bearing, not glue.
+   * ADR-003 Correction 1: without `context_to_groups`, `access_policy` matches nothing,
+   * and Cube Core does not map users to policy groups for you. This function is
+   * load-bearing, not glue.
+   *
+   * CORRECTED 2026-09-15 (TW-174). This comment used to say that omitting it makes Cube
+   * "serve every row" -- that it fails OPEN and silently. Measured against the pinned
+   * v1.7.18 with the current model, it does not: removing this function makes every
+   * query on a policy-bearing VIEW fail with "You requested hidden member", for every
+   * caller, because member-level access is denied when no policy matches. Loud, and the
+   * opposite of silent.
+   *
+   * The correction matters more than the detail. A false comment about a security
+   * control is how the next person builds on a guarantee that is not there -- the same
+   * class of defect as ADR-014's backstop shipping complete and inert (T-130) -- and
+   * "it fails open" invites someone to add a fallback that really would.
+   *
+   * What is NOT claimed here: that Cube fails closed in general. This is one engine
+   * version, one model shape, views carrying `access_policy` with `member_level`. A raw
+   * cube with no policy is public by default, which is why default-deny is still ours to
+   * enforce (content/README.md rule 5). The property is checked rather than trusted:
+   * scripts/rls-e2e.sh runs two users through the serving path on every build, and its
+   * negative control weakens the row FILTER rather than unplugging this function --
+   * precisely because unplugging it errors, and a suite that only has to notice an error
+   * would not notice a leak.
    */
   // NOTE the name. Cube's current docs say `contextToRoles`; v1.7.18 accepts only
   // `contextToGroups`, and rejects the other at startup. Verified against the image's

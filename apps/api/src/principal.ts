@@ -38,6 +38,25 @@ import { pocSystemContext, resolveSecurityContext, type SecurityContext } from '
  * did before -- every request gets the permissive POC system context. Configuring a
  * directory is what turns identity on, and from that moment an unknown subject is
  * refused rather than quietly served as `system`.
+ *
+ * ## Why turning identity on is not enough to be trusted
+ *
+ * "Inert until configured" is a weak guarantee here, because the scenario that makes
+ * someone configure a directory is TW-155 -- fifteen pilot users, roles assigned by hand
+ * -- and TW-146 puts the app on a VM. The first real USE of this feature would otherwise
+ * also be the moment it became exploitable, with a comment in a compose file standing
+ * between the two.
+ *
+ * So the directory alone is not sufficient. Honouring an unverified header is a separate,
+ * explicitly named admission (`TAILWIND_TRUST_UNVERIFIED_SUBJECT`), and a directory
+ * configured without it **refuses to start**. Startup, not per request: an operator finds
+ * out when they deploy rather than when an auditor asks, and a process that will serve
+ * impersonated rows should not be reachable at all.
+ *
+ * The flag is deliberately absent from `infra/docker-compose.yml`, so a deploy cannot
+ * inherit it; the dev loop adds it by hand or through a `.env`. **When TW-89 lands the
+ * claim is verified and the flag has nothing left to admit -- delete it, and this
+ * paragraph with it.**
  */
 
 /**
@@ -48,6 +67,16 @@ export const SUBJECT_HEADER = 'x-tailwind-subject';
 
 /** Where the directory comes from. See `principalDirectory` for the shape. */
 export const DIRECTORY_ENV = 'TAILWIND_PRINCIPALS';
+
+/**
+ * The admission that the subject header is taken on trust although nothing has verified
+ * it. Named to be read rather than tuned: there is no value of this variable that makes
+ * the deployment more secure, and nobody can set it believing it is a performance knob.
+ *
+ * Required before a directory is honoured, and only meaningful alongside one. Delete it
+ * with TW-89 -- a verified claim has nothing to admit.
+ */
+export const TRUST_UNVERIFIED_SUBJECT_ENV = 'TAILWIND_TRUST_UNVERIFIED_SUBJECT';
 
 /** Liveness must not depend on identity: a health check that 403s is a broken deploy that
  *  cannot be diagnosed. Everything else requires a resolved principal. */
@@ -70,6 +99,36 @@ export class UnresolvedPrincipal extends Error {}
  *  403 here would tell the user they are not allowed when the truth is that we cannot
  *  tell, and that is the kind of message that costs an hour at 2am. */
 export class PrincipalDirectoryError extends Error {}
+
+/**
+ * Identity is configured in a way that would trust an unverified header without anyone
+ * having said so. Thrown at STARTUP, where it stops the process.
+ *
+ * A separate type from `PrincipalDirectoryError` because it is a different conversation:
+ * that one says the configuration is unreadable, this one says it is readable and means
+ * something nobody agreed to.
+ */
+export class InsecureIdentityConfiguration extends Error {}
+
+/**
+ * The guard itself, in one place so the startup check and the per-request path cannot
+ * disagree about what "configured" means.
+ *
+ * Returns nothing and throws, rather than returning a boolean: a caller that forgets to
+ * branch on a boolean gets the insecure behaviour, and that is the failure mode this
+ * whole function exists to remove.
+ */
+function assertIdentityConfigurationIsDeliberate(): void {
+  if (process.env[DIRECTORY_ENV] === undefined || process.env[DIRECTORY_ENV]?.trim() === '') return;
+  if (process.env[TRUST_UNVERIFIED_SUBJECT_ENV] === '1') return;
+  throw new InsecureIdentityConfiguration(
+    `${DIRECTORY_ENV} is set, so the '${SUBJECT_HEADER}' header would select which user's rows are ` +
+      `served -- and nothing authenticates that header yet. Refusing to start.\n` +
+      `Set ${TRUST_UNVERIFIED_SUBJECT_ENV}=1 to accept impersonation on purpose (a dev loop or a demo), ` +
+      `or leave ${DIRECTORY_ENV} unset until SSO lands (TW-89), after which the claim is verified and ` +
+      `${TRUST_UNVERIFIED_SUBJECT_ENV} can be deleted.`,
+  );
+}
 
 /**
  * The principals this deployment knows about, or `undefined` when none are configured.
@@ -131,6 +190,11 @@ function subjectClaim(headers: FastifyRequest['headers']): string | undefined {
  * FR-SEM-14 rejection is written once and cannot be forgotten by the next source added.
  */
 export function resolvePrincipal(headers: FastifyRequest['headers']): SecurityContext {
+  // Defence in depth. `registerPrincipalResolution` has already refused to start a
+  // process in this state, so this is unreachable through the API -- but the environment
+  // is mutable and this function is exported, and the one thing it must never do is read
+  // a header nobody authorised it to trust.
+  assertIdentityConfigurationIsDeliberate();
   const directory = principalDirectory();
 
   // No directory: no identities exist yet, so the API answers as it did before SSO was
@@ -182,15 +246,27 @@ export function principalOf(req: FastifyRequest): SecurityContext {
  * "before any SQL is built" in this ticket's acceptance. Rejecting later would still
  * produce a 403, but it would be a 403 after the query had been compiled, and the
  * difference between those two is the whole point.
+ *
+ * Throws `InsecureIdentityConfiguration` if identity is on without the admission that
+ * makes it honest. This is called from `registerRoutes`, which is called from
+ * `buildApp()`, which `server.ts` calls before it binds a port -- so the failure is a
+ * process that does not start, not a request that is refused.
  */
 export function registerPrincipalResolution(app: FastifyInstance): void {
+  // First statement in the function, and the first thing the app does. A guard that ran
+  // after the routes were registered would leave a window in which the server was up.
+  assertIdentityConfigurationIsDeliberate();
+
   const directory = principalDirectory();
   if (directory !== undefined) {
     // Observability for the mode that matters: an operator reading the logs can see that
-    // identity is on, how many principals exist, and that the claim is not yet verified.
+    // identity is on, how many principals exist, and that the claim is taken on trust.
+    // Logged on every boot rather than once, because "we turned that on for a demo in
+    // March" is exactly the state this line exists to keep visible.
     app.log.warn(
-      { principals: directory.size, header: SUBJECT_HEADER },
-      'identity: principals resolved from the configured directory; the subject header is NOT authenticated until TW-89',
+      { principals: directory.size, header: SUBJECT_HEADER, trustedUnverified: true },
+      `identity: principals resolved from the configured directory, and the ${SUBJECT_HEADER} header is ` +
+        `TAKEN ON TRUST -- anyone who can reach this port can read any of their rows until TW-89`,
     );
   }
 
@@ -211,6 +287,15 @@ export function registerPrincipalResolution(app: FastifyInstance): void {
       if (e instanceof PrincipalDirectoryError) {
         req.log.error({ err: e }, 'principal directory is unusable');
         await reply.code(500).send({ error: e.message, code: 'principal_directory_invalid' });
+        return reply;
+      }
+      if (e instanceof InsecureIdentityConfiguration) {
+        // Only reachable if the environment changed under a running process, since
+        // startup refuses this state. Refusing to serve is the only safe answer: the
+        // alternative is honouring a header nobody authorised, which is the whole thing
+        // the startup guard exists to prevent.
+        req.log.error({ err: e }, 'identity configuration is not deliberate: refusing to serve');
+        await reply.code(500).send({ error: e.message, code: 'identity_not_deliberate' });
         return reply;
       }
       throw e;
