@@ -17,3 +17,4 @@ export { keyOrder } from './schema-order.ts';
 export { lintBundle, formatFindings, type Finding } from './lint.ts';
 export { cachePolicyFor, freshnessReport, DEFAULT_FRESHNESS, FRESHNESS_CLASSES, isFreshnessClass,
   type CachePolicy, type FreshnessReport, type AsOfSource } from './freshness.ts';
+export type { Notice, NoticeCode, NoticeSeverity } from './notices.ts';

@@ -95,3 +95,20 @@ export function toEChartsOption(chart: DashboardChart, rows: ResultRow[]): Chart
     })),
   };
 }
+
+/**
+ * FR-VIZ-13's state decision. Re-exported here so `@tailwind/charts` remains one
+ * import for a surface that renders a chart: which state to show and what to draw in
+ * it are the same question asked twice.
+ */
+export {
+  chartState,
+  chartNotices,
+  visibleNotices,
+  dashboardIncompleteNotice,
+  NO_ROWS_MESSAGE,
+  NO_VISIBLE_ROWS_MESSAGE,
+  UNEXPLAINED_FAILURE_MESSAGE,
+  type ChartOutcome,
+  type ChartState,
+} from './state.ts';
