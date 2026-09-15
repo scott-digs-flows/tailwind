@@ -155,6 +155,13 @@ mandatory on anything joined.
 rows are public, so default-deny is ours to enforce. Matching a policy does not by itself grant
 member visibility — omit `member_level` and you get *"You requested hidden member"*.
 
+A policy that quietly stops restricting looks like nothing at all: every chart renders, every number
+is plausible, and one group sees another's rows. `./scripts/rls-e2e.sh` is the gate for that — two
+principals of one tenant, one dashboard, through the API, against the CI fixture — and it runs on
+every build. It weakens the row filter afterwards and requires its own checks to fail, so it cannot
+pass by accident. Editing an `access_policy` and seeing that suite still green means the edit
+changed nothing about who can see what.
+
 ---
 
 ## What the gates check
@@ -164,6 +171,7 @@ member visibility — omit `member_level` and you get *"You requested hidden mem
 | `validate` | Shape and policy: unknown keys, Jinja, missing metadata, non-view metric refs, duplicate metrics, Cloud-gated keys, executable model files | Whether the numbers are right |
 | `fmt --check` | Non-canonical bytes | Anything semantic |
 | `./scripts/conformance.sh` | **Wrong numbers** — fan-out, chasm traps, grain rollups | Anything not modelled as a case |
+| `./scripts/rls-e2e.sh` | **Rows the wrong person can see** — an `access_policy` that stopped restricting, end to end through the API | Whether the policy expresses the rule the business meant |
 | `./scripts/publish.sh` | Whether Cube actually accepts the model | Everything above |
 
 A spec can be well-formed, correctly owned, properly certified — and still report revenue 31× too

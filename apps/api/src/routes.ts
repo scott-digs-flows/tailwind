@@ -11,6 +11,7 @@ import { classifyQueryFailure, failureNotice } from './query-failure.ts';
 import { loadDashboard } from './content.ts';
 import { health } from './db.ts';
 import { recordQuery } from './audit.ts';
+import { principalOf, registerPrincipalResolution } from './principal.ts';
 
 /**
  * The one place the executed freshness class is chosen -- deliberately one place,
@@ -32,6 +33,11 @@ function freshnessFor(body: { freshness?: unknown }): FreshnessClass {
 }
 
 export function registerRoutes(app: FastifyInstance): void {
+  // Identity first, and registered here rather than in the app builder so that no route
+  // in this file can be served without it. Every handler below reads its context from
+  // `principalOf(req)`, which throws if this hook did not run (FR-SEM-14, ADR-014 D2).
+  registerPrincipalResolution(app);
+
   app.get('/healthz', async (req, reply) => {
     const deps = await health();
     const ok = deps.postgres === 'up' && deps.redis === 'up';
@@ -39,6 +45,10 @@ export function registerRoutes(app: FastifyInstance): void {
     // datastore is down is how a broken deploy looks healthy (the same shape as the
     // Cube Store trap in T-118).
     if (!ok) reply.code(503);
+    // The one anonymous endpoint (see ANONYMOUS_PATHS), so it has no principal to read:
+    // a liveness check that needs an identity is a deploy nobody can diagnose. It
+    // carries no rows either, which is why a system context is honest here and would not
+    // be on any route below.
     return envelope({ status: ok ? 'ok' : 'degraded', service: 'api', deps }, pocSystemContext(), {
       traceId: req.id,
       cache: 'bypass',
@@ -46,10 +56,10 @@ export function registerRoutes(app: FastifyInstance): void {
   });
 
   app.get<{ Params: { name: string } }>('/v1/dashboards/:name', async (req, reply) => {
-    // SSO is M1 (T-072). Until then the context resolves permissively -- but it is
-    // resolved per request and threaded everywhere, so wiring real identity later
-    // changes one function rather than every call site (08-poc-scope.md 3.1).
-    const ctx = pocSystemContext();
+    // Resolved by the identity hook before this handler was reached, from the requesting
+    // user and never from the artifact's author (binding constraint 4). SSO is TW-89;
+    // what changes then is where the claim comes from, not this line.
+    const ctx = principalOf(req);
     try {
       return envelope(loadDashboard(ctx, req.params.name), ctx, {
         traceId: req.id,
@@ -86,7 +96,7 @@ export function registerRoutes(app: FastifyInstance): void {
   app.post<{ Body: { query: ChartQuery; freshness?: FreshnessClass } }>(
     '/v1/queries',
     async (req, reply) => {
-      const ctx = pocSystemContext();
+      const ctx = principalOf(req);
       const started = Date.now();
       try {
         const result = await runQuery(ctx, req.body.query, freshnessFor(req.body));
