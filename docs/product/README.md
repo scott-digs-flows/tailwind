@@ -19,9 +19,12 @@ Handoff package for the systems architect and full-stack engineer. Read in order
 Authoring a model or dashboard by hand: [`content/README.md`](../../content/README.md). These
 documents record *decisions*; that one records *how to do the thing*.
 
-Backlog lives in JIRA project `TW` (`scottdigsflows.atlassian.net`) — 137 tickets across 12
-epics and 5 milestones (99 POC, 33 GA). Every requirement prioritized `Must` or `Should` has at
-least one ticket; traceability is verified mechanically.
+Backlog lives in JIRA project `TW` (`scottdigsflows.atlassian.net`) — 170 tickets across 12
+epics and 5 milestones (136 POC, 34 GA). Every requirement prioritized `Must` or `Should` has at
+least one ticket; traceability is verified mechanically — though note what that check can and
+cannot prove: it asks whether a requirement has a ticket, not whether the ticket covered all of
+it. FR-FRESH-01 passed this check while half of it was unbuilt, because the ticket carrying it had
+been closed — see TW-182.
 
 ## The 60-second version
 
