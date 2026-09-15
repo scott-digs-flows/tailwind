@@ -30,7 +30,7 @@ here.
 | ADR-003 | [Semantic engine selection — Cube Core behind a Tailwind façade](ADR-003-semantic-engine-selection.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-004 | [Spec format, repository layout, canonical serializer](ADR-004-spec-format-and-repository-layout.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-005 | [Front-end stack and chart library](ADR-005-frontend-stack-and-chart-library.md) | M0 | **Accepted** 2026-08-10 |
-| ADR-006 | [Backend framework and API style](ADR-006-backend-framework-and-api-style.md) | M0 | **Accepted** 2026-08-10 · amended 2026-09-14 (`meta.notices`; façade signature and boundary lint) |
+| ADR-006 | [Backend framework and API style](ADR-006-backend-framework-and-api-style.md) | M0 | **Accepted** 2026-08-10 · amended 2026-09-14 (`meta.notices`; façade signature and boundary lint) · 2026-09-15 (`query_failed`, the seventh notice code) |
 | ADR-007 | Artifact publish mechanism | M1 | Not started |
 | ADR-008 | Cache topology and RLS-safe keying | M1 | Not started |
 | ADR-009 | Identity, group sync, RLS attribute model | M1 | Not started |
