@@ -202,6 +202,17 @@ Preserve the original `legacy_id` on the piece that kept the issue; new children
 `To Do` → `In Progress` → `Code Review` → `Quality Review` → `Done`, with the Flagged/Impediment
 flag from anywhere.
 
+The board is only useful if it says what is happening right now, so three moves are not optional:
+
+- **Starting work moves the ticket to `In Progress`** — before the branch, not after the PR. A
+  ticket at `To Do` with a branch behind it is invisible to everyone planning around it.
+- **Starting work puts the ticket in the active sprint** if it is not already there. Read the
+  sprint field first and write it only if the active sprint is missing; the recipe for finding the
+  active sprint is in the mapping file. If there is no active sprint, say so rather than guess —
+  creating one is a planning decision, not a side effect of picking up a ticket.
+- **A PR waiting on review moves the ticket to `Code Review`.** Leaving it at `In Progress`
+  tells reviewers there is nothing to look at yet.
+
 **`Done` means the Definition of Done** — merged, tested, observable, demonstrated. An open PR is
 `Code Review`, not `Done`. Moving a ticket to Done because the code is written is the most common
 way a board stops describing reality.

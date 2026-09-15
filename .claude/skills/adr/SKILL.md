@@ -42,7 +42,7 @@ Non-negotiables:
 ## After writing
 
 1. Update the status table in [docs/adr/README.md](../../../docs/adr/README.md).
-2. Update the producing ticket (status → In Review or Done) with the `ticket` skill, which knows
+2. Update the producing ticket (status → Code Review or Done) with the `ticket` skill, which knows
    whether JIRA or `TICKETS.csv` is authoritative today.
 3. If the decision answers or changes an open question, update
    [04-open-questions.md](../../../docs/product/04-open-questions.md) with a dated resolution and

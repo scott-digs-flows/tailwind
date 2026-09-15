@@ -102,8 +102,8 @@ ships `To Do / In Progress / Done` and Scott may have added columns.
 | CSV status | JIRA |
 |---|---|
 | `todo` | To Do |
-| `in-progress` | In Progress |
-| `review` | **Code Review** while a PR is open; **Quality Review** for verification after review |
+| `in-progress` | In Progress (transition `21`) — and in the active sprint, see below |
+| `review` | **Code Review** (transition `2`) while a PR is open; **Quality Review** (`3`) for verification after review |
 | `done` | Done |
 | `blocked` | Keep the current status and set `customfield_10021` (Flagged) to `Impediment` |
 
@@ -111,10 +111,37 @@ ships `To Do / In Progress / Done` and Scott may have added columns.
 the board, and "what is flagged" is one JQL away. Mirrors rule 3 in `05-ways-of-working.md` — you
 surface the block, you do not park the ticket somewhere nobody looks.
 
+## Sprints
+
+The board is Scrum (`boardId` 2). At the time of writing the active sprint is **TW Sprint 1**
+(id `3`, 2026-09-15 → 2026-09-28); do not hard-code that, because it will be wrong in two weeks.
+
+**Find the active sprint** by reading it off any issue already in it:
+
+```
+project = TW AND sprint in openSprints()      -- fields: customfield_10020
+```
+
+`customfield_10020` comes back as a list of sprint objects; take the one with `state: "active"`
+and use its `id`. An empty result usually means there is no active sprint — but it can also mean
+the sprint was just started and holds nothing yet, since this recipe reads the sprint off its
+issues. Check the board before concluding, then report it; do not invent a sprint. (The MCP tools
+cannot create or start sprints; that is done on the board.)
+
+**Put an issue in the sprint** with `editJiraIssue` and a bare numeric id — verified by writing it:
+
+```
+fields: { "customfield_10020": 3 }
+```
+
+Read the field first and write only if the active sprint is absent. The write is idempotent, but
+each one still lands in the issue history, and a history full of no-op sprint edits hides the real
+moves. Issues that are `Done` in a sprint stay there; do not move them.
+
 ## Other fields worth knowing
 
-`customfield_10016` Story point estimate · `customfield_10020` Sprint · `customfield_10021` Flagged
-· `customfield_10015` Start date · `customfield_10019` Rank.
+`customfield_10016` Story point estimate · `customfield_10020` Sprint (see above) ·
+`customfield_10021` Flagged · `customfield_10015` Start date · `customfield_10019` Rank.
 
 Native `priority` is authoritative for P0–P3; do **not** also carry a `P0` label, or the two will
 disagree and nobody will know which to believe. The project's own vocabulary still applies —
