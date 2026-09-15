@@ -75,7 +75,7 @@ That is why milestone is a label rather than a version.
 | `depends_on` | **Blocks** links — inward is "is blocked by" |
 | `req_ids` | the `tailwind-meta` block |
 | `acceptance` | the `## Acceptance` section |
-| `status` | To Do / In Progress / Done. `blocked` is the **Flagged: Impediment** field, so the ticket keeps its place on the board |
+| `status` | To Do · In Progress · **Code Review** · **Quality Review** · Done. `blocked` is the **Flagged: Impediment** field, so the ticket keeps its place on the board |
 
 ### Epics
 
@@ -99,8 +99,10 @@ That is why milestone is a label rather than a version.
 1. **Every ticket references a requirement or an ADR.** A ticket with an empty `req_ids` is either
    missing context or shouldn't exist. Chores and infra are the only routine exceptions.
 2. **`XL` is not an estimate, it's a flag.** Split before starting.
-3. **No ticket enters In Progress while a blocker is open** — flag it as an impediment instead;
-   that's how Product finds out an answer is overdue.
+3. **No ticket enters In Progress, Code Review or Quality Review while a blocker is open** —
+   flag it as an impediment instead; that's how Product finds out an answer is overdue. All
+   three are "started" as far as the checks are concerned, because all three mean someone has
+   begun.
 4. **Changing scope changes the requirement doc first**, then the ticket. The docs are the contract
    with the architect; drifting tickets away from them silently is how handoffs fail.
 5. **Relationships are links, never prose**, and **history is comments, never the description.**

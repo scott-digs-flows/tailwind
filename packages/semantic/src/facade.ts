@@ -15,17 +15,14 @@ export interface CompiledQuery {
   /** The effective row limit: the author's, or the FR-ADM-03 cap, whichever is smaller. */
   rowLimit: number;
   /**
-   * True when the FR-ADM-03 cap is the binding constraint rather than the author's own
-   * `limit`.
+   * Whether dropped rows should be reported to the reader.
    *
-   * This distinction is the whole point. An author who writes `limit: 10` for a "Top 10
-   * products" chart got exactly what they asked for -- telling them their result was
-   * truncated would be a warning on a chart that is behaving correctly, every time it
-   * loads. A warning that fires when nothing is wrong teaches people to ignore the
-   * channel, which is worse than the silence it replaced.
+   * False only for a deliberate ORDERED Top-N, where the excluded rows are the point.
+   * True everywhere else -- including an author `limit` with no `order`, which looks
+   * like a choice and behaves like an accident.
    */
-  capBinds: boolean;
-  /** What to ask the engine for: rowLimit, plus a probe row when the cap binds. */
+  reportTruncation: boolean;
+  /** What to ask the engine for: rowLimit, plus a probe row unless this is an ordered Top-N. */
   engineLimit: number;
 }
 
@@ -52,6 +49,16 @@ export interface QueryResult {
   truncated: boolean;
   /** The limit that was applied, so a caller can say what it was. */
   rowLimit: number;
+  /**
+   * The LIMIT actually sent to the engine -- `rowLimit`, or `rowLimit + 1` when a probe
+   * row was requested.
+   *
+   * The audit record needs this. `sql` is deliberately rendered at `rowLimit` so the
+   * FR-CON-02 panel describes the result the reader got, which means `sql` alone is not
+   * a faithful account of what executed. Recording the number closes that gap without a
+   * second round trip to the engine for a string differing by one character.
+   */
+  engineLimit: number;
 }
 
 /**
@@ -111,19 +118,38 @@ export function compile(query: SemanticQuery, ctx: SecurityContext): CompiledQue
   // after something falls over.
   const asked = query.limit ?? DEFAULT_ROW_LIMIT;
   const rowLimit = Math.min(asked, DEFAULT_ROW_LIMIT);
-  const capBinds = asked >= DEFAULT_ROW_LIMIT;
-  // Ask for ONE row more than the cap, so that hitting it is detectable -- a cap you
-  // cannot detect is not a cap, it is a quiet lie. Only when the cap binds: probing an
-  // author's deliberate `limit: 10` would buy a row we have nothing to say about.
-  const engineLimit = capBinds ? rowLimit + 1 : rowLimit;
-  engineQuery['limit'] = engineLimit;
+
+  // Whether dropping rows is something the author CHOSE or something that happened TO
+  // them. The difference is the `order`, not the number.
+  //
+  // "Top 10 products" is `limit: 10` WITH an order: the author picked the ten they
+  // meant and the other rows are not missing, they are excluded. Warning there puts a
+  // caveat on a chart that is behaving exactly as designed, every time it loads, which
+  // teaches people to ignore the channel.
+  //
+  // `limit: 500` with NO order is a different thing wearing the same clothes: the
+  // engine returns whichever 500 rows it happens to reach first, and the author almost
+  // certainly believed that was all of them. That is the silent truncation this whole
+  // mechanism exists to catch, and the previous rule -- probe only when the cap binds
+  // -- missed every case of it below 10,000 rows.
+  const orderedTopN = (query.order?.length ?? 0) > 0 && asked < DEFAULT_ROW_LIMIT;
+  // Ask for ONE row more than we will return, so that dropping rows is detectable. A
+  // cap you cannot detect is not a cap, it is a quiet lie. The only query we do not
+  // probe is a deliberate ordered Top-N, where there is nothing to say.
+  engineQuery['limit'] = orderedTopN ? rowLimit : rowLimit + 1;
 
   // The context is not yet a predicate source in the POC (the pilot area has no row
   // differences), but it is threaded here so the seam is real. Tenant is carried into
   // the engine as a JWT claim by the client.
   void ctx;
 
-  return { engineQuery, view: query.view, rowLimit, capBinds, engineLimit };
+  return {
+    engineQuery,
+    view: query.view,
+    rowLimit,
+    reportTruncation: !orderedTopN,
+    engineLimit: engineQuery['limit'] as number,
+  };
 }
 
 /**
@@ -136,10 +162,11 @@ export function compile(query: SemanticQuery, ctx: SecurityContext): CompiledQue
 export function applyRowLimit(
   data: Record<string, unknown>[],
   rowLimit: number,
-  capBinds: boolean,
+  reportTruncation: boolean,
 ): { rows: Record<string, unknown>[]; truncated: boolean } {
-  const truncated = capBinds && data.length > rowLimit;
-  return { rows: truncated ? data.slice(0, rowLimit) : data, truncated };
+  // Slice regardless -- the probe row is never data. Only the REPORTING is conditional.
+  const truncated = reportTruncation && data.length > rowLimit;
+  return { rows: data.length > rowLimit ? data.slice(0, rowLimit) : data, truncated };
 }
 
 /** Compile, then execute. The only path from a spec to a number. */
@@ -148,7 +175,7 @@ export async function runQuery(
   query: SemanticQuery,
   ctx: SecurityContext,
 ): Promise<QueryResult> {
-  const { engineQuery, rowLimit, capBinds } = compile(query, ctx);
+  const { engineQuery, rowLimit, reportTruncation, engineLimit } = compile(query, ctx);
   // The SQL shown to a user must describe the result they actually got. The probe row
   // is our business, not theirs: showing `LIMIT 10001` above 10,000 rows in the
   // "how is this calculated?" panel (FR-CON-02) undermines the one surface whose whole
@@ -158,5 +185,11 @@ export async function runQuery(
     cubeLoad(opts, engineQuery, ctx),
     cubeSql(opts, shownQuery, ctx).catch(() => ''),
   ]);
-  return { ...applyRowLimit(result.data, rowLimit, capBinds), sql, asOf: result.lastRefreshTime, rowLimit };
+  return {
+    ...applyRowLimit(result.data, rowLimit, reportTruncation),
+    sql,
+    asOf: result.lastRefreshTime,
+    rowLimit,
+    engineLimit,
+  };
 }
