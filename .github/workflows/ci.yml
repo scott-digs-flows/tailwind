@@ -234,6 +234,58 @@ jobs:
       - name: Conformance suite and negative control
         run: ./scripts/conformance.sh
 
+  # TW-174 / FR-SEC-04, FR-SEM-14, FR-SEM-15. Two people open one dashboard through the
+  # real serving path and get different rows, and a request that resolves to no tenant is
+  # refused before a byte reaches the engine.
+  #
+  # A separate job from `conformance` although both boot the same fixture stack, for two
+  # reasons. A red build here means row-level security broke, and that has to be readable
+  # from the job name rather than from a log inside a job about dialect conformance. And
+  # both scripts MUTATE the reviewed model for their negative control and restore it
+  # afterwards; sharing a checkout would make one suite's control the other's flake, at
+  # the cost of the one thing neither may be -- trusted less than completely.
+  rls-end-to-end:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pinned versions
+        run: cat infra/versions.env | grep -v '^#' | sed 's/ *#.*//' >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v4
+        with: { run_install: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start the warehouse and the engine
+        run: |
+          docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml up -d
+          for i in $(seq 1 90); do
+            curl -sf "http://localhost:${CUBE_CI_PORT}/readyz" >/dev/null 2>&1 && break
+            sleep 2
+          done
+
+      # Same reasoning as the conformance job: /readyz passes while the model is unusable
+      # (T-118), so readiness is a real query. It matters more here -- an engine that
+      # cannot answer would make every row set empty, and "both users saw nothing" must
+      # never be mistaken for "the filter worked".
+      - name: Wait for the engine to actually serve a query
+        run: |
+          export CUBE_URL="http://localhost:${CUBE_CI_PORT}/cubejs-api/v1"
+          for i in $(seq 1 60); do
+            node packages/semantic/test/manual/ping.ts >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "engine never served a query" >&2
+          docker compose --env-file infra/versions.env -f infra/docker-compose.ci.yml logs --tail 120 cube >&2
+          node packages/semantic/test/manual/ping.ts >&2 || true
+          exit 1
+
+      - name: Two users, one dashboard — and the negative control
+        run: ./scripts/rls-e2e.sh
+
   # T-130. The guard checks the connecting ROLE's privileges, not only the table
   # policies -- ADR-014's backstop once shipped complete and inert because the app
   # connected as a superuser, and superusers bypass RLS entirely.
