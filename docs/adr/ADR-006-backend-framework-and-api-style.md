@@ -459,3 +459,86 @@ lint is missing. Land the lint before T-045.
 body carrying `freshness: "operational"` does not change cache behaviour — the served class comes
 from the artifact. (3) The boundary lint fails on a deliberately added `cube-client` import in
 `apps/api`. (4) A `packages/semantic` export added without a `SecurityContext` parameter fails CI.
+
+---
+
+## D3 amendment: a seventh notice code, `query_failed`, and the rule for the eighth (TW-156, 2026-09-15)
+
+The 2026-09-14 amendment closed `code` as a six-value enum and said adding one is a deliberate
+schema change. TW-156 (FR-VIZ-13) is that change, raised properly: the implementer added
+`query_failed` in `packages/spec/src/notices.ts` and declined to edit an accepted ADR. This is the
+amendment. **The enum is now seven values:**
+
+```jsonc
+"code": "row_limit_reached" | "served_stale" | "partial_failure" | "empty_by_policy"
+      | "query_timeout" | "query_failed" | "cache_degraded"
+```
+
+`query_failed` is always `severity: "error"`, and a result carrying it shows **no number** — the
+notice replaces the chart's body rather than sitting above it.
+
+### Why `partial_failure` does not already cover it
+
+It was the right first question, and the answer is no, for three reasons that are each sufficient.
+
+**The requirement enumerates them separately.** FR-VIZ-13 lists "query failure, empty result, a
+result truncated by the row cap, partial dashboard failure, and in-flight loading" as *distinct,
+visible states*. Two of those five are the two codes in question. A single code for both would make
+an accepted `Must` unimplementable in the one channel D3 permits.
+
+**They are different scopes, and FR-VIZ-13's third criterion needs both on one screen.** A chart
+whose query failed is a statement about *that result*: there is no data, do not read a number here.
+`partial_failure` is a statement about *the page*: some charts rendered, this dashboard does not add
+up, do not read it as a whole picture. On a six-chart dashboard with one failure, the correct screen
+carries one `query_failed` on one card and one `partial_failure` in the header — emitted by
+different producers, the query route and the dashboard tally. Collapsing them leaves the renderer
+switching on position in the payload rather than on the code, which is the thing a closed enum
+exists to prevent.
+
+**The enum already contains a chart-level total failure: `query_timeout`.** A timed-out query
+returns no rows either. If `partial_failure` covered "this chart has nothing", `query_timeout` would
+have been redundant on the day the amendment was written. It was not, and `query_failed` is its
+sibling — the same state arriving by a different route.
+
+Two alternatives were considered and lost. A `scope: "result" | "page"` field on `Notice`
+generalises correctly but makes every renderer switch on two dimensions to decide one thing, when
+the code already determines the scope unambiguously — no producer emits `partial_failure` per chart
+and none emits `query_failed` per page. Reusing `partial_failure` with the distinction in `detail`
+puts a load-bearing discriminator in the field nothing is required to read.
+
+### The rule for the eighth code, so this is not a precedent for an open enum
+
+The temptation, once a code exists for failure, is one code per cause — `warehouse_unreachable`,
+`model_undefined`, `permission_denied` — and a closed enum becomes an open one by a hundred
+reasonable increments. The taxonomy is not of *causes*. It is of **what the surface must do**, along
+two axes: whether a result exists (degraded-but-present versus absent), and whose scope the
+statement is about (this result versus this page). Seven codes fill that grid. A cause that does not
+change what the surface renders is a `message`, not a code.
+
+`apps/api/src/query-failure.ts` is the pattern: three classified causes — warehouse unreachable, the
+model no longer defines what the chart asks for, and unknown — land on the *same* `query_failed`
+code with three different plain-language messages, because the reader does something different in
+each case but the chart renders identically. `query_timeout` is a code rather than a fourth message
+only because it predates this rule and because "narrow the filters" is the one remedy a viewer can
+act on without the data team. **An eighth code needs a new cell in that grid, and the ADR to say
+which one.**
+
+### `detail` is optional, and currently absent everywhere
+
+D3's example shows `{ code, severity, message, detail }`. What shipped — in the merged truncation
+work, before TW-156 — is `{ code, severity, message }`. Ratifying the omission rather than leaving
+the doc and the code disagreeing: `detail` is **optional and unused**, because every notice's
+payload today is prose composed by the producer, which is the only side that knows what happened.
+It returns the first time a renderer must *compute* with a notice's value rather than print it —
+formatting "10,000 of 240,000 rows" client-side is the realistic candidate — and that is a schema
+change with a test, not a field added speculatively now.
+
+### Validation
+
+1. A dashboard with one failing chart and one good one returns `query_failed` in the failing
+   chart's envelope and `partial_failure` at the page level, **simultaneously**, and the rendered
+   page shows both (FR-VIZ-13's third criterion; `apps/web/test/App.test.tsx`).
+2. A chart whose envelope carries `query_failed` renders no number anywhere in its body — asserted
+   negatively, because "shows a reason" and "shows no number" are two different failures.
+3. `NoticeCode` is declared exactly once, in `packages/spec`, and `apps/api/src/envelope.ts`
+   re-exports rather than redeclares it. Two copies of a closed enum typecheck and drift.
