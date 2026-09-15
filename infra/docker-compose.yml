@@ -29,8 +29,14 @@ services:
       # EMPTY BY DEFAULT, which means "no identities exist yet" and every request gets
       # the permissive POC context -- the behaviour this stack has always had. Set it and
       # the API starts requiring a principal, refusing any request it cannot resolve to a
-      # tenant (FR-SEM-14). Until SSO (TW-89) the claim is an unauthenticated header, so
-      # this belongs in a dev loop and a demo, not in front of real data.
+      # tenant (FR-SEM-14).
+      #
+      # Setting it ALONE will make the API refuse to start, and that is the point. Until
+      # SSO (TW-89) the subject arrives in an unauthenticated header, so honouring it is a
+      # separate admission: TAILWIND_TRUST_UNVERIFIED_SUBJECT=1. That variable is
+      # deliberately NOT listed in this file. Add it to this service's `environment:` by
+      # hand for a dev loop or a demo, so that a deployment cannot inherit impersonation
+      # from a compose default nobody re-read. Delete it when TW-89 lands.
       TAILWIND_PRINCIPALS: "${TAILWIND_PRINCIPALS:-}"
     volumes:
       # Reviewed artifacts, read-only. In M0 the "bundle" is the working tree; the

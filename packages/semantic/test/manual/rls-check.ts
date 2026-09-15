@@ -4,6 +4,13 @@
  * ADR-003 D4's Validation clause: the M0 check that proves the security context is real
  * rather than decorative. Two users in the SAME tenant, one cache-eligible query, two
  * different row sets and two different cache-key components.
+ *
+ * TARGETS THE DEV WAREHOUSE (infra/docker-compose.yml), not the CI fixture. It asserts on
+ * reseller sales, which the fixture confines to a single territory group, so pointing
+ * CUBE_URL at the conformance stack makes it fail for reasons that are about the data and
+ * not about row security -- do not read that as a regression. The CI-run equivalent is
+ * `apps/api/test/e2e/rls-two-users.ts` (TW-174), which goes through the serving path and
+ * picks metrics the fixture genuinely differentiates.
  */
 import { DEFAULT_FRESHNESS } from '@tailwind/spec';
 import { runQuery, resolveSecurityContext, securityContextDigest, type SecurityContext } from '../../src/index.ts';

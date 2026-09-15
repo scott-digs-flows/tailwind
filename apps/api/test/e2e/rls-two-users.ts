@@ -36,7 +36,7 @@
  * fail. The rejection check carries its own control in-process -- see `no-principal`.
  */
 import { buildApp } from '../../src/app.ts';
-import { DIRECTORY_ENV, SUBJECT_HEADER } from '../../src/principal.ts';
+import { DIRECTORY_ENV, SUBJECT_HEADER, TRUST_UNVERIFIED_SUBJECT_ENV } from '../../src/principal.ts';
 
 /**
  * Two principals, ONE tenant. Set before the app is built; the API reads the directory
@@ -55,6 +55,11 @@ process.env[DIRECTORY_ENV] = JSON.stringify([
   { subject: WIDE, tenant: TENANT, groups: ['analyst'] },
   { subject: NARROW, tenant: TENANT, groups: ['europe_only'] },
 ]);
+// The admission that goes with it: a directory alone refuses to start, because the
+// subject header is not authenticated until TW-89. A test impersonating two people is
+// exactly the case the flag is for, and saying so here is cheaper than a reader
+// wondering whether the API is this easy to fool by default. It is not.
+process.env[TRUST_UNVERIFIED_SUBJECT_ENV] = '1';
 
 const DASHBOARD = 'sales_overview';
 /** A table of rows, and a single-number KPI. Both are on the same dashboard, and the
