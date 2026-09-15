@@ -6,9 +6,12 @@ through a pull request. Replaces Tableau / Power BI / Looker.
 
 **Current phase: M0 implementation, underway.** The seven M0 architecture decisions are written
 and accepted (ADR-001 through ADR-006 and ADR-014). The scaffold and the walking skeleton have
-landed, along with the conformance suite, the tenancy guard and the supply-chain scan — 28 of 137
-tickets are done. The remaining M0 blocker is T-133, provisioning the VM, which is the only
-`blocked` ticket in the backlog.
+landed, along with the conformance suite, the tenancy guard and the supply-chain scan — 32 of 170
+tickets are done. Thirteen M0 tickets are still open, and their shape matters more than the count:
+most are discovery that needs *people* rather than code — the wizard-of-oz study (TW-134) and its
+prerequisites. The rest are infrastructure someone has to provision (TW-146, TW-126) and content
+work (TW-133). The engineering side of M0 is close to finished; the evidence side has barely
+started, and it is the side the POC's hypothesis actually rests on.
 
 **The stack, so you do not have to read five ADRs to start:** TypeScript end-to-end — Fastify API,
 React + Vite front end, one shared `packages/spec` for schemas, parsing and the canonical YAML
@@ -87,7 +90,7 @@ Four skills carry the rules that must not live in someone's memory:
 
 ## Working in this repo
 
-**Backlog: JIRA project `TW`** (`scottdigsflows.atlassian.net`) — 12 epics, 137 tickets. Conventions
+**Backlog: JIRA project `TW`** (`scottdigsflows.atlassian.net`) — 12 epics, 170 tickets. Conventions
 and field encoding live in the `ticket` skill. `TICKETS.csv` is **retired**; it and JIRA were never
 both authoritative, which is the one rule `05-ways-of-working.md` insists on.
 
