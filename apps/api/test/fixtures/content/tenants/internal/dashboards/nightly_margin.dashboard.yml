@@ -1,0 +1,41 @@
+# Fixture for apps/api/test/queries.test.ts. Not published content: it lives under a
+# test-only TAILWIND_CONTENT_ROOT so `tailwind validate content` and CODEOWNERS routing
+# are unaffected.
+#
+# It declares `batch` rather than `standard` on purpose. `standard` is also the value a
+# request with no artifact gets, so a test written against a `standard` dashboard would
+# pass just as happily if the artifact were never read at all.
+#
+# It does NOT declare `operational`, which is the other class a test here might reach
+# for: ADR-004 D4 / T-115 make the validator reject that class in a reviewed artifact
+# until FR-FRESH-04's approval gate exists, and this file is read through that same
+# validator. A fixture that becomes invalid the week T-115 lands is a trap for whoever
+# lands it.
+spec_version: 1
+name: nightly_margin
+title: Nightly margin
+freshness:
+  class: batch
+meta:
+  tailwind:
+    spec_version: 1
+    owner: data-team
+    description: Fixture dashboard for the freshness-resolution tests.
+    certification: certified
+    last_reviewed: '2026-09-15'
+charts:
+  - id: margin_by_month
+    title: Margin by month
+    type: line
+    layout:
+      x: 0
+      y: 0
+      w: 6
+      h: 4
+    query:
+      view: sales
+      metrics:
+        - sales.margin
+      time_dimensions:
+        - member: sales.order_date
+          granularity: month

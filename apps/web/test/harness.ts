@@ -15,7 +15,14 @@ import type { Dashboard, DashboardChart, Notice } from '@tailwind/spec';
  */
 export interface PendingRequest {
   url: string;
-  body: { query?: { view?: string; filters?: unknown[] }; freshness?: string } | null;
+  body: {
+    /** What a chart request carries since TW-167: a reference, not a query. */
+    chart?: { dashboard?: string; id?: string };
+    /** The ad-hoc shape, still served for the CLI and curl. */
+    query?: { view?: string; filters?: unknown[] };
+    /** Never sent by this client any more. Kept so a test can assert its ABSENCE. */
+    freshness?: string;
+  } | null;
   resolve: (response: unknown, status?: number) => void;
   /** The transport itself failing: no response, no envelope, no reason from the API. */
   fail: () => void;
@@ -43,9 +50,14 @@ export function stubFetch(): { requests: PendingRequest[] } {
   return { requests };
 }
 
-/** Finds the pending query for a chart, by the view its query names. */
-export const requestFor = (requests: PendingRequest[], view: string): PendingRequest | undefined =>
-  requests.find((r) => r.body?.query?.view === view);
+/**
+ * Finds the pending query for a chart, by the chart id it names.
+ *
+ * By id rather than by view since TW-167: the browser no longer sends the query, so
+ * there is no view in the body to match on.
+ */
+export const requestFor = (requests: PendingRequest[], chartId: string): PendingRequest | undefined =>
+  requests.find((r) => r.body?.chart?.id === chartId);
 
 export const meta = (over: Partial<Record<string, unknown>> = {}) => ({
   bundle_version: 'test-bundle',

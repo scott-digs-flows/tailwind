@@ -105,7 +105,13 @@ export function App() {
         }}
       >
         {dash.charts.map((c) => (
-          <ChartCard key={c.id} chart={c} freshness={dash.freshness.class} onStateChange={onChartState} />
+          <ChartCard
+            key={c.id}
+            chart={c}
+            dashboard={dash.name}
+            freshness={dash.freshness.class}
+            onStateChange={onChartState}
+          />
         ))}
       </div>
     </main>
