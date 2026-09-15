@@ -50,6 +50,19 @@ const ARTIFACT_NAME = /^[a-z][a-z0-9_]*$/;
  * this nor any other message here includes the RESOLVED path -- where our content root
  * lives on disk is not something a rejected caller needs to be told.
  */
+/**
+ * A reference the CALLER got wrong: a name that is not an artifact name, an artifact
+ * that is not published, a chart that is not in the dashboard named.
+ *
+ * Separate from every other failure in this file because the two deserve different
+ * answers and different disclosure. This one is a 400 and its message may be shown --
+ * it says only what the caller already sent, run through `quoteInput`. A PUBLISHED
+ * artifact that fails validation is not this: that is our fault, not theirs, and its
+ * message carries the artifact's path on disk and its line numbers, so it stays a plain
+ * Error and lands on the generic 500 sentence (`query-failure.ts`).
+ */
+export class UnknownArtifact extends Error {}
+
 function quoteInput(value: string): string {
   // Control characters -- the NUL that truncates a path inside a C API, the
   // newline that forges a line -- become `?` rather than reaching the message.
@@ -58,7 +71,7 @@ function quoteInput(value: string): string {
 }
 
 function checkName(kind: 'dashboard' | 'chart' | 'tenant', value: string): string {
-  if (!ARTIFACT_NAME.test(value)) throw new Error(`invalid ${kind} name ${quoteInput(value)}`);
+  if (!ARTIFACT_NAME.test(value)) throw new UnknownArtifact(`invalid ${kind} name ${quoteInput(value)}`);
   return value;
 }
 
@@ -96,7 +109,7 @@ export function dashboardPath(ctx: SecurityContext, name: string): string {
   // `dirname(...) !== dir` rather than `startsWith(dir)`: a prefix test passes for
   // `/content/tenants/internal_other/...`, which is a different tenant.
   if (dirname(resolve(path)) !== resolve(dir)) {
-    throw new Error(`invalid dashboard name ${quoteInput(name)}`);
+    throw new UnknownArtifact(`invalid dashboard name ${quoteInput(name)}`);
   }
   // Returned in the form it was built, NOT resolved: this string reaches the caller
   // inside a spec-validation message (`formatErrors`), and an absolute host path is more
@@ -106,7 +119,7 @@ export function dashboardPath(ctx: SecurityContext, name: string): string {
 
 export function loadDashboard(ctx: SecurityContext, name: string): Dashboard {
   const path = dashboardPath(ctx, name);
-  if (!existsSync(path)) throw new Error(`dashboard ${quoteInput(name)} not found`);
+  if (!existsSync(path)) throw new UnknownArtifact(`dashboard ${quoteInput(name)} not found`);
 
   // Validated on read with the SAME validator the CLI and CI use (FR-SEM-11). A spec
   // that would fail CI cannot be served just because it reached disk.
@@ -143,7 +156,9 @@ export function loadChart(ctx: SecurityContext, ref: PublishedChartRef): Publish
   const dashboard = loadDashboard(ctx, ref.dashboard);
   const chart = dashboard.charts.find((c) => c.id === ref.id);
   if (chart === undefined) {
-    throw new Error(`chart ${quoteInput(ref.id)} is not in published dashboard ${quoteInput(ref.dashboard)}`);
+    throw new UnknownArtifact(
+      `chart ${quoteInput(ref.id)} is not in published dashboard ${quoteInput(ref.dashboard)}`,
+    );
   }
   return { dashboard, chart, freshness: effectiveFreshness(dashboard, chart) };
 }

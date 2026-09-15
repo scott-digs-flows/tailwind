@@ -1,6 +1,6 @@
 import { DEFAULT_FRESHNESS, type ChartQuery, type FreshnessClass } from '@tailwind/spec';
 import type { SecurityContext } from '@tailwind/semantic';
-import { loadChart, type PublishedChart, type PublishedChartRef } from './content.ts';
+import { loadChart, UnknownArtifact, type PublishedChart, type PublishedChartRef } from './content.ts';
 
 /**
  * What `POST /v1/queries` accepts, and the whole of it.
@@ -69,7 +69,7 @@ function chartRefIn(body: QueryRequestBody): PublishedChartRef | undefined {
   if (ref === undefined || ref === null) return undefined;
   const { dashboard, id } = ref;
   if (typeof dashboard !== 'string' || typeof id !== 'string') {
-    throw new Error("`chart` must be { dashboard: string, id: string }");
+    throw new UnknownArtifact('`chart` must be { dashboard: string, id: string }');
   }
   return { dashboard, id };
 }
@@ -94,11 +94,13 @@ export function resolveQuery(ctx: SecurityContext, body: QueryRequestBody): Gove
   // Fastify hands over whatever JSON parsed -- `null` and `"hello"` included. Checked
   // here so those arrive as the sentence below rather than as a TypeError with a
   // property name in it.
-  if (typeof body !== 'object' || body === null) throw new Error(NEEDS_ONE);
+  if (typeof body !== 'object' || body === null) throw new UnknownArtifact(NEEDS_ONE);
   const ref = chartRefIn(body);
   if (ref !== undefined) {
     if (body.query !== undefined) {
-      throw new Error('send `chart` or `query`, not both: a published chart supplies its own query');
+      throw new UnknownArtifact(
+        'send `chart` or `query`, not both: a published chart supplies its own query',
+      );
     }
     const published = loadChart(ctx, ref);
     return {
@@ -107,6 +109,6 @@ export function resolveQuery(ctx: SecurityContext, body: QueryRequestBody): Gove
       dashboard: ref.dashboard,
     };
   }
-  if (body.query === undefined) throw new Error(NEEDS_ONE);
+  if (body.query === undefined) throw new UnknownArtifact(NEEDS_ONE);
   return { query: body.query, freshness: freshnessFor(undefined), dashboard: undefined };
 }

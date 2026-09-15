@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { runQuery, pocSystemContext } from '@tailwind/semantic';
 import { envelope } from './envelope.ts';
 import { classifyQueryFailure, failureNotice } from './query-failure.ts';
-import { loadDashboard } from './content.ts';
+import { loadDashboard, UnknownArtifact } from './content.ts';
 import { health } from './db.ts';
 import { recordQuery } from './audit.ts';
 import { principalOf, registerPrincipalResolution } from './principal.ts';
@@ -132,6 +132,24 @@ export function registerRoutes(app: FastifyInstance): void {
         // log under the same trace id the reader is shown. Previously `e.message` went
         // straight to the browser, which could put the engine's name and a fragment of
         // the generated SQL on a dashboard.
+        // A caller who named something that is not published has made a 400, not
+        // caused a 500, and `classifyQueryFailure` is deliberately not the judge of
+        // that: it classifies EXECUTION failures by the requirement IDs our own
+        // refusals carry, so a resolution refusal -- which carries none -- would land
+        // on the generic "something went wrong" and report the fault as ours. These
+        // messages are safe to show: they say only what the caller sent, quoted
+        // through `quoteInput`. A published artifact that fails validation is NOT an
+        // UnknownArtifact and still falls through below, because its message carries
+        // the artifact's path on disk.
+        if (e instanceof UnknownArtifact) {
+          req.log.warn({ err: e }, 'query request could not be resolved');
+          reply.code(400);
+          return envelope({ error: e.message }, ctx, {
+            traceId: req.id,
+            cache: 'bypass',
+            notices: [{ code: 'query_failed', severity: 'error', message: e.message }],
+          });
+        }
         const failure = classifyQueryFailure(e);
         // Both shapes, because either may be absent: a published request carries no
         // `query` and an ad-hoc one carries no `chart`. Logging only the view was right

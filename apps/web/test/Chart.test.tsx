@@ -164,7 +164,7 @@ test('changing the filters clears the previous number the moment the new query s
   expect(screen.queryByText('1,234')).toBeNull();
 });
 
-test('changing the freshness class is a new question too', async () => {
+test('changing the freshness class is a new question too -- and is never sent', async () => {
   const { requests } = stubFetch();
   const chart = kpiChart('revenue', 'sales');
   const { rerender } = render(<ChartCard chart={chart} dashboard="sales_overview" freshness="standard" />);
@@ -172,9 +172,28 @@ test('changing the freshness class is a new question too', async () => {
 
   rerender(<ChartCard chart={chart} dashboard="sales_overview" freshness="operational" />);
 
+  // Still a new question: a republished dashboard governed by a different class would
+  // answer differently, so the previous number must not sit under the new one.
   expect(screen.queryByText('1,234')).toBeNull();
   expect(requests).toHaveLength(2);
-  expect(requests[1]!.body?.freshness).toBe('operational');
+  // But the class is NOT what the browser asks for. TW-167 moved that decision to the
+  // server, which reads it from the published artifact; a client that could name
+  // `operational` would be handing itself FR-FRESH-04's approval. This asserts the
+  // absence rather than a value, so it keeps holding if the prop is renamed.
+  expect(requests[1]!.body?.freshness).toBeUndefined();
+  expect(requests[1]!.body?.chart).toEqual({ dashboard: 'sales_overview', id: 'revenue' });
+});
+
+test('the browser asks for a chart by name and never sends its query', async () => {
+  // The governance claim of TW-167 at the client edge: the tab holds a copy of the
+  // dashboard and could post the query back, and that is exactly what must not happen.
+  // A query the client supplies is one the data team never reviewed.
+  const { requests } = stubFetch();
+  render(<ChartCard chart={kpiChart('revenue', 'sales')} dashboard="sales_overview" freshness="standard" />);
+
+  expect(requests[0]!.body?.query).toBeUndefined();
+  expect(requests[0]!.body?.freshness).toBeUndefined();
+  expect(requests[0]!.body?.chart).toEqual({ dashboard: 'sales_overview', id: 'revenue' });
 });
 
 test('a truncation notice is still rendered above the number it qualifies', async () => {

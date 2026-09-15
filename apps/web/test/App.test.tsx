@@ -32,7 +32,7 @@ test('one failed chart does not stop the others, and the dashboard says it is in
     data: dashboard([kpiChart('revenue', 'sales'), kpiChart('orders', 'orders')]),
   });
 
-  const sales = requestFor(requests, 'sales');
+  const sales = requestFor(requests, 'revenue');
   const orders = requestFor(requests, 'orders');
   expect(sales && orders).toBeTruthy();
 
@@ -61,7 +61,7 @@ test('a dashboard whose charts all answer says nothing extra', async () => {
     meta: okEnvelope([]).meta,
     data: dashboard([kpiChart('revenue', 'sales'), kpiChart('orders', 'orders')]),
   });
-  await settle(requestFor(requests, 'sales')!, okEnvelope([{ 'sales.revenue': 1234 }]));
+  await settle(requestFor(requests, 'revenue')!, okEnvelope([{ 'sales.revenue': 1234 }]));
   await settle(requestFor(requests, 'orders')!, okEnvelope([{ 'orders.revenue': 7 }]));
 
   expect(screen.queryByRole('alert')).toBeNull();
