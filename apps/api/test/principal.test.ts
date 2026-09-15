@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { securityContextDigest } from '@tailwind/semantic';
 import {
   DIRECTORY_ENV,
+  InsecureIdentityConfiguration,
   PrincipalDirectoryError,
   SUBJECT_HEADER,
+  TRUST_UNVERIFIED_SUBJECT_ENV,
   UnresolvedPrincipal,
   principalDirectory,
   principalOf,
@@ -31,17 +33,27 @@ const DIRECTORY = JSON.stringify([
   { subject: 'sam', tenant: 'other_tenant', groups: ['analyst'] },
 ]);
 
-/** Env is process-wide and node:test interleaves, so each case owns its own value and
- *  puts back what it found. */
-function withDirectory<T>(value: string | undefined, fn: () => T): T {
-  const before = process.env[DIRECTORY_ENV];
-  if (value === undefined) delete process.env[DIRECTORY_ENV];
-  else process.env[DIRECTORY_ENV] = value;
+/**
+ * Env is process-wide and node:test interleaves, so each case owns its own values and
+ * puts back what it found.
+ *
+ * It sets the trust flag alongside the directory because that is the only combination
+ * the API will run in: a directory without the admission refuses to start, which is its
+ * own test below rather than a condition every other case has to restate.
+ */
+function withDirectory<T>(value: string | undefined, fn: () => T, trusted = true): T {
+  const before = { dir: process.env[DIRECTORY_ENV], trust: process.env[TRUST_UNVERIFIED_SUBJECT_ENV] };
+  const set = (name: string, v: string | undefined): void => {
+    if (v === undefined) delete process.env[name];
+    else process.env[name] = v;
+  };
+  set(DIRECTORY_ENV, value);
+  set(TRUST_UNVERIFIED_SUBJECT_ENV, trusted ? '1' : undefined);
   try {
     return fn();
   } finally {
-    if (before === undefined) delete process.env[DIRECTORY_ENV];
-    else process.env[DIRECTORY_ENV] = before;
+    set(DIRECTORY_ENV, before.dir);
+    set(TRUST_UNVERIFIED_SUBJECT_ENV, before.trust);
   }
 }
 
@@ -115,6 +127,51 @@ test('a principal with no groups is legal — it sees nothing, which is default-
   assert.deepEqual([...ctx.groups], []);
 });
 
+test('a directory WITHOUT the trust flag refuses to start', () => {
+  // The guard the coordinator asked for, and the reason it is at startup rather than per
+  // request: the scenario that makes someone configure a directory is TW-155's fifteen
+  // hand-assigned pilot users, and TW-146 puts this on a VM. Turning identity on must not
+  // be the same act as agreeing to trust an unverified header.
+  let e: unknown;
+  try {
+    withDirectory(DIRECTORY, buildApp, false);
+  } catch (caught: unknown) {
+    e = caught;
+  }
+  assert.ok(e instanceof InsecureIdentityConfiguration, `expected a refusal, got ${String(e)}`);
+  // The message has to carry the way out, or the operator who hits it at deploy time has
+  // only a refusal. Both halves: the flag that accepts it, and the ticket that ends it.
+  assert.match(e.message, new RegExp(TRUST_UNVERIFIED_SUBJECT_ENV));
+  assert.match(e.message, /TW-89/);
+  // And it must not quietly degrade to the permissive context instead, which is the
+  // failure this replaces -- the API would then serve every row to an unauthenticated
+  // caller while looking like it had identity turned on.
+  assert.throws(() => withDirectory(DIRECTORY, () => resolvePrincipal(claiming('wes')), false), InsecureIdentityConfiguration);
+});
+
+test('a directory WITH the trust flag starts and resolves as before', () => {
+  const app = withDirectory(DIRECTORY, buildApp);
+  assert.ok(app);
+  void app.close();
+  const ctx = withDirectory(DIRECTORY, () => resolvePrincipal(claiming('morgan')));
+  assert.equal(ctx.subject, 'morgan');
+});
+
+test('the trust flag on its own changes nothing — there is no header to trust', () => {
+  // It admits something about a directory. Without one there are no identities, so this
+  // must stay the permissive POC branch rather than becoming a second way to turn
+  // identity half-on.
+  const before = process.env[TRUST_UNVERIFIED_SUBJECT_ENV];
+  process.env[TRUST_UNVERIFIED_SUBJECT_ENV] = '1';
+  try {
+    const ctx = withDirectory(undefined, () => resolvePrincipal(claiming('anyone')), false);
+    assert.equal(ctx.subject, 'system');
+  } finally {
+    if (before === undefined) delete process.env[TRUST_UNVERIFIED_SUBJECT_ENV];
+    else process.env[TRUST_UNVERIFIED_SUBJECT_ENV] = before;
+  }
+});
+
 test('a context cannot be read for a request the hook never saw', () => {
   // The reason `principalOf` is a WeakMap lookup that throws rather than a decorated
   // property with a default: there is no value it could return that would be safe.
@@ -126,7 +183,9 @@ test('the route refuses an unresolvable principal with 403 and no envelope', asy
   // restoring the environment before the injected request had run would test the
   // no-directory branch while claiming to test this one.
   const before = process.env[DIRECTORY_ENV];
+  const beforeTrust = process.env[TRUST_UNVERIFIED_SUBJECT_ENV];
   process.env[DIRECTORY_ENV] = DIRECTORY;
+  process.env[TRUST_UNVERIFIED_SUBJECT_ENV] = '1';
   const app = buildApp();
   try {
     const res = await app.inject({
@@ -149,5 +208,7 @@ test('the route refuses an unresolvable principal with 403 and no envelope', asy
     await app.close();
     if (before === undefined) delete process.env[DIRECTORY_ENV];
     else process.env[DIRECTORY_ENV] = before;
+    if (beforeTrust === undefined) delete process.env[TRUST_UNVERIFIED_SUBJECT_ENV];
+    else process.env[TRUST_UNVERIFIED_SUBJECT_ENV] = beforeTrust;
   }
 });
