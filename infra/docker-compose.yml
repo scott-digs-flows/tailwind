@@ -25,6 +25,13 @@ services:
       APP_DB_PASSWORD: "tailwind_app"
       REDIS_URL: "redis://redis:6379"
       TAILWIND_CONTENT_ROOT: "/srv/content"
+      # Who the API knows about, as JSON: [{"subject":…,"tenant":…,"groups":[…]}].
+      # EMPTY BY DEFAULT, which means "no identities exist yet" and every request gets
+      # the permissive POC context -- the behaviour this stack has always had. Set it and
+      # the API starts requiring a principal, refusing any request it cannot resolve to a
+      # tenant (FR-SEM-14). Until SSO (TW-89) the claim is an unauthenticated header, so
+      # this belongs in a dev loop and a demo, not in front of real data.
+      TAILWIND_PRINCIPALS: "${TAILWIND_PRINCIPALS:-}"
     volumes:
       # Reviewed artifacts, read-only. In M0 the "bundle" is the working tree; the
       # immutable per-merge bundle is ADR-007 / T-029.
