@@ -318,3 +318,79 @@ rejected by our validator, so the two cannot drift back together.
 schema, and both surfaced only when a real engine parsed a real file. The mirror cannot be validated
 by inspection. T-097's conformance suite is the standing answer, and this is early evidence it is
 needed rather than nice to have.
+
+---
+
+## Amendment: where the `operational` refusal lives, and the chart override that does not exist (2026-09-15, TW-180)
+
+D4's wording has drifted behind the code in two independent ways, both landed on `main` at
+`75e8774`. **Neither is a wrong decision.** The split D4 chose — the class stays expressible in the
+format, a separate policy refuses to ship one — is still the right split, and both drifts are the
+prose failing to describe it precisely enough to survive a reader in a hurry. What follows corrects
+the description and records a gap; it reverses nothing.
+
+### A — "rejected by the validator" is true of the command and false of the module
+
+D4 says `operational` "validates against the schema and is **rejected by the validator**". Since
+TW-180 (PR #12) that refusal is a **bundle lint rule**, `operational-not-in-poc` in
+`packages/spec/src/lint.ts`, not a schema check. `lintBundle` has exactly one caller —
+`packages/cli/src/main.ts:43` — so the refusal is reachable through `tailwind validate content` and
+through nothing else. `parseSpec` (`packages/spec/src/validate.ts`) still accepts the class, on
+purpose, and `apps/api/src/content.ts`'s `loadDashboard` goes through `parseSpec` and never through
+the lint.
+
+So "the validator" is accurate about the **command** and wrong about the **module**, and the
+ambiguity is not pedantry: a reader who takes it as the module has one obvious fix available —
+tighten the `class` enum in `schemas/v1/dashboard.json` — and that fix destroys the property D4
+exists to protect. The class would become unexpressible, the cache API could not take it
+(FR-FRESH-02), and the re-cut D4 was written to avoid arrives at ADR-008. `validate.test.ts` now
+asserts the negative mechanically (`operational` must still parse); this says it in words, because
+the test can only stop the change, not explain why it was wrong.
+
+**Read D4's sentence as:** `operational` is legal in the schema and refused by the
+`operational-not-in-poc` rule in `lintBundle`, surfaced by `tailwind validate content`, with a
+message naming FR-FRESH-04 and `08-poc-scope.md §7`.
+
+### A2 — this is a merge gate, not a serve-time one
+
+Worth stating plainly because it is a real property of the design and nobody would infer it from
+D4: **nothing refuses `operational` at request time.** `apps/api/src/routes.ts` resolves the class
+from the published artifact and executes at whatever the artifact declares —
+`cachePolicyFor('operational')` is ttl 0, so every viewer and every refresh reaches the warehouse.
+An artifact that arrives in `content/` by some route other than a reviewed merge therefore runs at
+its declared class with nothing standing in front of it.
+
+That is consistent, not accidental. Git is the source of truth (binding constraint 1) and artifacts
+publish on merge, so the gate belongs where a reviewer is already looking at the diff; a second
+serve-time refusal would be a runtime check on content the repository has already accepted, and
+would tempt someone to treat the serving tier as an authority over what a number means. The
+disclosure here is only that the guarantee is "review let this through", not "the server would stop
+a bad one". FR-FRESH-04's actual approval flow — projected cost surfaced, data team signs off — is
+TW-128 at M3 and is not built.
+
+### B — charts cannot override the class, and the schema cannot express that they could
+
+D4 says "charts may override downward only", as does FR-FRESH-01 (a `Must`,
+`01-requirements.md:46`). The dashboard schema does not permit it: the `chart` definition in
+`packages/spec/schemas/v1/dashboard.json` has `id`, `title`, `type`, `layout`, `query` and
+`additionalProperties: false`. There is no per-chart `freshness` block, so there is nothing to
+override with. TW-125 is Done having shipped only the dashboard-level half; **TW-182 tracks the
+chart-level override** and was blocked by TW-180, which has now merged.
+
+**The current behaviour is safe, which is why this is a gap and not a defect.** Every chart inherits
+the dashboard's class, so nothing resolves *stricter* than what a reviewer approved — the failure
+mode of a missing downward override is a chart that is cached longer than its author wanted, never
+one that is cheaper to review than to run. `freshnessSites()` in `lint.ts` already reads chart-level
+`freshness.class` out of the document rather than trusting the schema, so the gate covers the
+override on the day it lands rather than becoming half a gate.
+
+**Read D4's sentence as:** charts *will* override downward only (FR-FRESH-01, TW-182); today they
+inherit the dashboard's class, and the schema admits no chart-level `freshness` block.
+
+### Why this is description rather than decision
+
+Both drifts argue *for* D4's split rather than against it. Drift A exists because the refusal was
+correctly implemented as a policy over merged content instead of as a format rule — exactly what D4
+asked for — and only the word "validator" failed to keep up. Drift B is an unshipped half of a
+requirement, and the half that shipped is the safe one. If either had gone the other way — a
+tightened enum, or charts overriding *upward* — this would be a supersede, not an amendment.

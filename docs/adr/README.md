@@ -28,7 +28,7 @@ here.
 | ADR-001 | [Deployment — one VM, one Compose file, one environment](ADR-001-deployment-target-and-topology.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-002 | [Warehouse of record — ClickHouse, single dialect, tier computed](ADR-002-warehouse-of-record-and-dialect-tiers.md) | M0 | **Accepted** 2026-08-13 |
 | ADR-003 | [Semantic engine selection — Cube Core behind a Tailwind façade](ADR-003-semantic-engine-selection.md) | M0 | **Accepted** 2026-08-10 |
-| ADR-004 | [Spec format, repository layout, canonical serializer](ADR-004-spec-format-and-repository-layout.md) | M0 | **Accepted** 2026-08-10 |
+| ADR-004 | [Spec format, repository layout, canonical serializer](ADR-004-spec-format-and-repository-layout.md) | M0 | **Accepted** 2026-08-10 · amended 2026-08-12 (`spec_version` moves into `meta.tailwind` on profile files) · 2026-09-15 (D4: the `operational` refusal is a bundle lint, a merge gate not a serve-time one; no chart-level override yet) |
 | ADR-005 | [Front-end stack and chart library](ADR-005-frontend-stack-and-chart-library.md) | M0 | **Accepted** 2026-08-10 |
 | ADR-006 | [Backend framework and API style](ADR-006-backend-framework-and-api-style.md) | M0 | **Accepted** 2026-08-10 · amended 2026-09-14 (`meta.notices`; façade signature and boundary lint) · 2026-09-15 (`query_failed`, the seventh notice code) |
 | ADR-007 | Artifact publish mechanism | M1 | Not started |
