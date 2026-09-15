@@ -1,10 +1,15 @@
-import type { SecurityContext } from '@tailwind/semantic';
-import { securityContextDigest } from '@tailwind/semantic';
-import { freshnessReport } from '@tailwind/spec';
+import type { CacheOutcome, SecurityContext } from '@tailwind/semantic';
+import { bundleVersion, securityContextDigest } from '@tailwind/semantic';
+import { freshnessReport, type FreshnessClass } from '@tailwind/spec';
 
-/** FR-FRESH-01. Declared per artifact; only `standard` needs to work in the POC. */
-export type FreshnessClass = 'batch' | 'standard' | 'operational';
-export type CacheOutcome = 'hit' | 'miss' | 'bypass';
+/**
+ * Both re-exported rather than redeclared. They were local unions here, identical to
+ * the ones in `packages/spec` and `packages/semantic`, which typechecks fine and drifts
+ * silently: the class this envelope reports and the class the facade executed under are
+ * meant to be the same governed value (FR-FRESH-01), and two definitions of one enum is
+ * how they stop being.
+ */
+export type { CacheOutcome, FreshnessClass };
 
 /**
  * ADR-006 amendment (2026-09-14). The envelope is the ONLY channel for degradation.
@@ -65,7 +70,10 @@ export interface Envelope<T> {
   data: T;
 }
 
-export const BUNDLE_VERSION = process.env['TAILWIND_BUNDLE_VERSION'] ?? 'dev';
+/** One reader, shared with the cache key (`packages/semantic/src/engine-config.ts`):
+ *  an envelope reporting a different bundle than the key a result was stored under is
+ *  a stale number wearing a fresh label. */
+export const BUNDLE_VERSION = bundleVersion();
 
 /**
  * The security context is a REQUIRED positional parameter with no overload that

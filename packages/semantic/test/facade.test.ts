@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   compile,
+  prepareQuery,
+  runQuery,
   applyRowLimit,
   pocSystemContext,
   securityContextDigest,
@@ -148,6 +150,37 @@ test('the security context cannot be omitted, at compile time or run time (FR-SE
     () => compile({ view: 'sales', metrics: ['sales.revenue'] }, undefined),
     /requires a resolved SecurityContext/,
   );
+});
+
+test('the freshness class cannot be omitted, at compile time or run time (FR-FRESH-02)', async () => {
+  // Type level, the same guard the security context has and for the same reason: the
+  // class is a governed property (FR-FRESH-01/04), so a caller that may leave it out is
+  // a caller that silently picks a cache policy and a cost. If someone adds an overload
+  // or a default, this stops erroring and the @ts-expect-error becomes the failure.
+  // @ts-expect-error
+  const _typeGuard = () => runQuery(ctx, { view: 'sales', metrics: ['sales.revenue'] });
+  void _typeGuard;
+
+  // Run time: the AI path and a request body arrive as plain strings. Refused rather
+  // than mapped onto `standard` -- and refused before the engine is touched, so this
+  // needs no stack running.
+  await assert.rejects(
+    // @ts-expect-error -- deliberately bypassing the type to exercise the guard.
+    () => runQuery(ctx, { view: 'sales', metrics: ['sales.revenue'] }, 'whenever'),
+    /requires a FreshnessClass/,
+  );
+});
+
+test('the class reaches execution as a policy, and never the compiled query', () => {
+  // The distinction the ticket turns on. The class must change what the CACHE does and
+  // nothing about what the WAREHOUSE is asked -- a freshness class that altered the
+  // compiled query would be a second way to change a number, which binding constraint 2
+  // exists to prevent.
+  const batch = prepareQuery(ctx, { view: 'sales', metrics: ['sales.revenue'] }, 'batch');
+  const operational = prepareQuery(ctx, { view: 'sales', metrics: ['sales.revenue'] }, 'operational');
+  assert.deepEqual(batch.compiled.engineQuery, operational.compiled.engineQuery);
+  assert.equal(batch.cacheLookup.policy.ttlSeconds, 24 * 60 * 60);
+  assert.equal(operational.cacheLookup.policy.ttlSeconds, 0, 'operational has no meaningful result cache');
 });
 
 test('two different subjects produce different digests (FR-SEM-15)', () => {

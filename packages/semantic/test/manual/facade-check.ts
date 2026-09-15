@@ -1,4 +1,5 @@
 /** Manual smoke check against a running stack. Not part of `pnpm test` (needs Cube up). */
+import { DEFAULT_FRESHNESS } from '@tailwind/spec';
 import { runQuery, pocSystemContext } from '../../src/index.ts';
 
 const r = await runQuery(
@@ -10,6 +11,7 @@ const r = await runQuery(
     filters: [{ member: 'sales.category', operator: 'equals', values: ['Bikes'] }],
     order: [{ member: 'sales.revenue', dir: 'desc' }],
   },
+  DEFAULT_FRESHNESS,
 );
 console.log('rows:');
 for (const row of r.rows) console.log('  ', JSON.stringify(row));

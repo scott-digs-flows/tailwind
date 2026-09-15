@@ -45,6 +45,18 @@ const POLICIES: Record<FreshnessClass, CachePolicy> = {
 
 export const DEFAULT_FRESHNESS: FreshnessClass = 'standard';
 
+/**
+ * The classes, as data. The union in `types.ts` is the compile-time statement of
+ * FR-FRESH-01 and this is its run-time half: the AI path, a request body and any
+ * dynamic caller arrive as a plain string, and a value that is not one of these three
+ * must be caught rather than quietly mapped onto the default.
+ */
+export const FRESHNESS_CLASSES: readonly FreshnessClass[] = ['batch', 'standard', 'operational'];
+
+export function isFreshnessClass(value: unknown): value is FreshnessClass {
+  return typeof value === 'string' && (FRESHNESS_CLASSES as readonly string[]).includes(value);
+}
+
 export function cachePolicyFor(cls: FreshnessClass = DEFAULT_FRESHNESS): CachePolicy {
   return POLICIES[cls] ?? POLICIES[DEFAULT_FRESHNESS];
 }
